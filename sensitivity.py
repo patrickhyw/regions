@@ -4,13 +4,15 @@ from collections.abc import Callable
 from typing import Literal, NamedTuple
 
 import numpy as np
-from analytics.convexhull import fit_hull
-from analytics.hyperellipsoid import fit_ellipsoid
-from analytics.specificity import Shape
 from pydmodels.knowledge import KnowledgeNode, KnowledgeTree
 from pydmodels.representation import RepresentationCollection
 from repgen.util import get_rep_path
-from treegen.util import TREES_DIR, get_tree_path
+
+from convexhull import fit_hull
+from embedding import get_embeddings
+from hyperellipsoid import hyperellipsoid as fit_ellipsoid
+from specificity import Shape
+from tree import build_named_tree
 
 
 class NodeResult(NamedTuple):
@@ -54,13 +56,14 @@ def _collect_training_vectors(
 
 
 def _evaluate_sensitivity(
-    tree: KnowledgeTree,
-    original_reps: dict[str, list[float]],
-    spaceaug_reps: dict[str, list[float]],
+    tree_name: str,
+    dim: int,
     fit_fn: Callable[[np.ndarray], Shape],
     train_fraction: float = 0.0,
 ) -> list[NodeResult]:
     """Core sensitivity evaluation (no I/O)."""
+    tree = build_named_tree(tree_name)
+    original_reps = get_embeddings(tree.concepts(), dim)
     sa_concepts = list(spaceaug_reps)
     train_sa, test_sa = _split_spaceaug(sa_concepts, train_fraction)
     train_sa_set = set(train_sa)
@@ -123,23 +126,22 @@ def print_node_results(results: list[NodeResult]) -> None:
 def sensitivity(
     shape: Literal["hyperellipsoid", "convexhull"],
     tree_name: str,
-    dimensionality: int,
+    dimension: int,
     train_fraction: float = 0.0,
 ) -> list[NodeResult]:
     """Run sensitivity analysis.
 
     Loads data and delegates to _evaluate_sensitivity.
     """
-    tree_path = get_tree_path(tree_name)
-    tree = KnowledgeTree.model_validate_json(tree_path.read_text())
+    tree = build_named_tree(tree_name)
 
     def load_reps(rep_name: str) -> RepresentationCollection:
         raw = json.loads(get_rep_path(rep_name).read_text())
         raw["knowledge_tree"] = str(TREES_DIR / raw["knowledge_tree"])
         return RepresentationCollection.model_validate(raw)
 
-    orig_repcol = load_reps(f"embeddings_{tree_name}_d{dimensionality}")
-    sa_repcol = load_reps(f"embeddings_spaceaug_{tree_name}_d{dimensionality}")
+    orig_repcol = load_reps(f"embeddings_{tree_name}_d{dimension}")
+    sa_repcol = load_reps(f"embeddings_spaceaug_{tree_name}_d{dimension}")
 
     fit_fns = {"hyperellipsoid": fit_ellipsoid, "convexhull": fit_hull}
     return _evaluate_sensitivity(
@@ -161,9 +163,9 @@ if __name__ == "__main__":
         help="Name of the tree (e.g. 'manual_tiny').",
     )
     parser.add_argument(
-        "dimensionality",
+        "dimension",
         type=int,
-        help="Dimensionality of embeddings.",
+        help="Dimension of embeddings.",
     )
     parser.add_argument(
         "--shape",
@@ -184,7 +186,7 @@ if __name__ == "__main__":
         sensitivity(
             shape=args.shape,
             tree_name=args.tree_name,
-            dimensionality=args.dimensionality,
+            dimension=args.dimension,
             train_fraction=args.train_fraction,
         )
     )

@@ -18,17 +18,17 @@ MAX_SLEEP = 60
 
 # Values explicitly mentioned in
 # https://ai.google.dev/gemini-api/docs/embeddings
-VALID_DIMENSIONALITIES = {128, 256, 512, 768, 1536, 2048, 3072}
+VALID_DIMENSIONS = {128, 256, 512, 768, 1536, 2048, 3072}
 
 CACHE = Cache(Path(__file__).resolve().parent / ".cache")
 
 
-def _validate_dimensionality(dimensionality: int) -> None:
-    """Raise ValueError if dimensionality is not a supported value."""
-    if dimensionality not in VALID_DIMENSIONALITIES:
-        sorted_dims = sorted(VALID_DIMENSIONALITIES)
+def _validate_dimension(dimension: int) -> None:
+    """Raise ValueError if dimension is not a supported value."""
+    if dimension not in VALID_DIMENSIONS:
+        sorted_dims = sorted(VALID_DIMENSIONS)
         raise ValueError(
-            f"Invalid dimensionality {dimensionality}. Must be one of {sorted_dims}."
+            f"Invalid dimension {dimension}. Must be one of {sorted_dims}."
         )
 
 
@@ -46,17 +46,17 @@ def _embed_with_retry(
     model: str,
     contents: list[str],
     *,
-    dimensionality: int,
+    dimension: int,
 ) -> EmbedContentResponse:
     """Call embed_content with exponential backoff on retryable errors."""
-    _validate_dimensionality(dimensionality)
+    _validate_dimension(dimension)
     attempt = 0
     while True:
         try:
             return client.models.embed_content(
                 model=model,
                 contents=contents,
-                config=EmbedContentConfig(output_dimensionality=dimensionality),
+                config=EmbedContentConfig(output_dimensionality=dimension),
             )
         except APIError as e:
             if e.code not in RETRYABLE_STATUS_CODES:
@@ -69,20 +69,20 @@ def _embed_with_retry(
 def get_embeddings(
     texts: list[str],
     *,
-    dimensionality: int,
+    dimension: int,
 ) -> list[list[float]]:
     """Get embeddings for texts, using cache when possible.
 
     Checks the cache for each text. Uncached texts are fetched from the
     Gemini API in batches, normalized, and written back to the cache.
     """
-    _validate_dimensionality(dimensionality)
+    _validate_dimension(dimension)
 
     results: dict[int, list[float]] = {}
     uncached_indices: list[int] = []
 
     for i, text in enumerate(texts):
-        cached = CACHE.get((text, dimensionality))
+        cached = CACHE.get((text, dimension))
         if cached is not None:
             results[i] = cached
         else:
@@ -94,15 +94,13 @@ def get_embeddings(
         all_embeddings: list[ContentEmbedding] = []
         for batch_start in range(0, len(uncached_texts), BATCH_SIZE):
             batch = uncached_texts[batch_start : batch_start + BATCH_SIZE]
-            response = _embed_with_retry(
-                client, MODEL, batch, dimensionality=dimensionality
-            )
+            response = _embed_with_retry(client, MODEL, batch, dimension=dimension)
             assert response.embeddings is not None, "API returned no embeddings."
             all_embeddings.extend(response.embeddings)
 
         normalized = _normalize_embeddings(all_embeddings)
         for idx, embedding in zip(uncached_indices, normalized):
             results[idx] = embedding
-            CACHE.set((texts[idx], dimensionality), embedding)
+            CACHE.set((texts[idx], dimension), embedding)
 
     return [results[i] for i in range(len(texts))]

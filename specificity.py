@@ -6,13 +6,14 @@ from collections.abc import Callable
 from itertools import combinations
 from typing import NamedTuple, Protocol
 
-from analytics.convexhull import convexhull
-from analytics.hyperellipsoid import hyperellipsoid
 from pydmodels.knowledge import Concept, KnowledgeNode
 from pydmodels.representation import RepresentationCollection, Vector
 from repgen.util import get_rep_path
 from tqdm import tqdm
 from treegen.util import TREES_DIR
+
+from convexhull import convex_hull
+from hyperellipsoid import hyperellipsoid
 
 MAX_SIBLING_RATIO = 3.0
 MIN_SUBTREE_SIZE = 10
@@ -173,7 +174,7 @@ if __name__ == "__main__":
 
     fit_fns: dict[str, FitFn] = {
         "hyperellipsoid": hyperellipsoid,
-        "convexhull": convexhull,
+        "convexhull": convex_hull,
     }
     print_results(
         evaluate_sibling_pairs(

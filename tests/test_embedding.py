@@ -16,18 +16,18 @@ from embedding import (
 )
 
 
-def _make_embedding(seed: int, dimensionality: int) -> MagicMock:
+def _make_embedding(seed: int, dimension: int) -> MagicMock:
     """Create a mock embedding object with deterministic random values.
 
     Generates a full 3072-dim unit vector then truncates to the requested
-    dimensionality, mimicking the API's truncation behavior. The result
-    is intentionally not unit-norm so normalization tests are meaningful.
+    dimension, mimicking the API's truncation behavior. The result is
+    intentionally not unit-norm so normalization tests are meaningful.
     """
     rng = np.random.default_rng(seed)
     full = rng.standard_normal(3072)
     full /= np.linalg.norm(full)
     emb = MagicMock()
-    emb.values = full[:dimensionality].tolist()
+    emb.values = full[:dimension].tolist()
     return emb
 
 
@@ -99,7 +99,7 @@ class TestEmbedWithRetry:
             success,
         ]
 
-        result = _embed_with_retry(mock_client, "model", ["a", "b"], dimensionality=768)
+        result = _embed_with_retry(mock_client, "model", ["a", "b"], dimension=768)
 
         assert result is success
         assert mock_sleep.call_args_list == [call(1), call(2)]
@@ -114,7 +114,7 @@ class TestEmbedWithRetry:
         mock_client.models.embed_content.side_effect = error
 
         with pytest.raises(ClientError):
-            _embed_with_retry(mock_client, "model", ["a"], dimensionality=768)
+            _embed_with_retry(mock_client, "model", ["a"], dimension=768)
 
         mock_sleep.assert_not_called()
 
@@ -128,7 +128,7 @@ class TestEmbedWithRetry:
         success = MagicMock()
         mock_client.models.embed_content.side_effect = [error] * 8 + [success]
 
-        result = _embed_with_retry(mock_client, "model", ["a"], dimensionality=768)
+        result = _embed_with_retry(mock_client, "model", ["a"], dimension=768)
 
         assert result is success
         assert mock_sleep.call_args_list == [
@@ -142,12 +142,12 @@ class TestEmbedWithRetry:
             call(60),
         ]
 
-    def test_valid_dimensionality_passed_to_config(
+    def test_valid_dimension_passed_to_config(
         self,
         mock_client: MagicMock,
     ) -> None:
-        """A valid dimensionality is forwarded in EmbedContentConfig."""
-        _embed_with_retry(mock_client, "model", ["a"], dimensionality=256)
+        """A valid dimension is forwarded in EmbedContentConfig."""
+        _embed_with_retry(mock_client, "model", ["a"], dimension=256)
 
         mock_client.models.embed_content.assert_called_once_with(
             model="model",
@@ -155,19 +155,19 @@ class TestEmbedWithRetry:
             config=EmbedContentConfig(output_dimensionality=256),
         )
 
-    @pytest.mark.parametrize("dimensionality", [100, 500, 1024])
-    def test_invalid_dimensionality_raises(
+    @pytest.mark.parametrize("dimension", [100, 500, 1024])
+    def test_invalid_dimension_raises(
         self,
         mock_client: MagicMock,
-        dimensionality: int,
+        dimension: int,
     ) -> None:
-        """Invalid dimensionalities raise ValueError before calling the API."""
-        with pytest.raises(ValueError, match="dimensionality"):
+        """Invalid dimensions raise ValueError before calling the API."""
+        with pytest.raises(ValueError, match="dimension"):
             _embed_with_retry(
                 mock_client,
                 "model",
                 ["a"],
-                dimensionality=dimensionality,
+                dimension=dimension,
             )
 
         mock_client.models.embed_content.assert_not_called()
@@ -197,7 +197,7 @@ class TestGetEmbeddings:
         mock_genai_client: MagicMock,
     ) -> None:
         """All uncached texts are fetched from the API."""
-        result = get_embeddings(["dog", "cat"], dimensionality=768)
+        result = get_embeddings(["dog", "cat"], dimension=768)
 
         assert len(result) == 2
         client = mock_genai_client.return_value
@@ -212,7 +212,7 @@ class TestGetEmbeddings:
         cache.set(("dog", 768), [1.0, 0.0])
         cache.set(("cat", 768), [0.0, 1.0])
 
-        result = get_embeddings(["dog", "cat"], dimensionality=768)
+        result = get_embeddings(["dog", "cat"], dimension=768)
 
         client = mock_genai_client.return_value
         client.models.embed_content.assert_not_called()
@@ -226,7 +226,7 @@ class TestGetEmbeddings:
         """Only uncached texts are sent to the API."""
         cache.set(("dog", 768), [1.0, 0.0])
 
-        result = get_embeddings(["dog", "cat"], dimensionality=768)
+        result = get_embeddings(["dog", "cat"], dimension=768)
 
         client = mock_genai_client.return_value
         call_args = client.models.embed_content.call_args
@@ -240,7 +240,7 @@ class TestGetEmbeddings:
         mock_genai_client: MagicMock,
     ) -> None:
         """Fetched embeddings are written back to the cache."""
-        get_embeddings(["dog"], dimensionality=768)
+        get_embeddings(["dog"], dimension=768)
 
         cached = cache.get(("dog", 768))
         assert cached is not None
@@ -252,20 +252,20 @@ class TestGetEmbeddings:
         mock_genai_client: MagicMock,
     ) -> None:
         """Fetched embeddings are normalized to unit norm."""
-        result = get_embeddings(["dog", "cat"], dimensionality=768)
+        result = get_embeddings(["dog", "cat"], dimension=768)
 
         for vec in result:
             assert np.linalg.norm(vec) == pytest.approx(1.0, abs=1e-6)
 
-    @pytest.mark.parametrize("dimensionality", [100, 500, 1024])
-    def test_invalid_dimensionality_raises(
+    @pytest.mark.parametrize("dimension", [100, 500, 1024])
+    def test_invalid_dimension_raises(
         self,
         cache: diskcache.Cache,
-        dimensionality: int,
+        dimension: int,
     ) -> None:
-        """Invalid dimensionalities raise ValueError before any work."""
-        with pytest.raises(ValueError, match="dimensionality"):
-            get_embeddings(["dog"], dimensionality=dimensionality)
+        """Invalid dimensions raise ValueError before any work."""
+        with pytest.raises(ValueError, match="dimension"):
+            get_embeddings(["dog"], dimension=dimension)
 
     def test_batches_large_requests(
         self,
@@ -300,7 +300,7 @@ class TestGetEmbeddings:
             client.models.embed_content.side_effect = _reject_oversized_batch
 
             texts = [f"concept_{i}" for i in range(150)]
-            result = get_embeddings(texts, dimensionality=768)
+            result = get_embeddings(texts, dimension=768)
 
             calls = client.models.embed_content.call_args_list
             assert len(calls) == 2

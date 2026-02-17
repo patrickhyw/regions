@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import json
 from collections import Counter
 from dataclasses import dataclass, field
@@ -10,7 +9,6 @@ from typing import Literal
 from nltk.corpus import wordnet as wn
 from nltk.corpus.reader.wordnet import Synset
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
-from treegen.util import get_tree_path
 
 
 class KnowledgeNode(BaseModel):
@@ -304,5 +302,5 @@ TREE_DIRECTORY: dict[str, TreeSpec] = {
 }
 
 
-def build_predefined_tree(name: str) -> KnowledgeTree:
+def build_named_tree(name: str) -> KnowledgeTree:
     return build_tree(wn.synset(TREE_DIRECTORY[name].root_synset))
