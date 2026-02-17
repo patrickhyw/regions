@@ -5,21 +5,20 @@ from typing import Literal, NamedTuple
 
 import numpy as np
 from analytics.specificity import Shape
-from pydmodels.knowledge import Concept, KnowledgeNode, KnowledgeTree
-from pydmodels.representation import Vector
+from pydmodels.knowledge import KnowledgeNode, KnowledgeTree
 
 
 class NodeResult(NamedTuple):
-    concept: Concept
+    concept: str
     contained: int
     total: int
 
 
 def _split_spaceaug(
-    concepts: list[Concept],
+    concepts: list[str],
     rng: np.random.Generator,
     train_fraction: float,
-) -> tuple[list[Concept], list[Concept]]:
+) -> tuple[list[str], list[str]]:
     """Split spaceaug concepts into train/test by the given fraction."""
     indices = rng.permutation(len(concepts))
     mid = int(len(concepts) * train_fraction)
@@ -30,9 +29,9 @@ def _split_spaceaug(
 
 def _collect_training_vectors(
     node: KnowledgeNode,
-    original_reps: dict[Concept, Vector],
-    spaceaug_reps: dict[Concept, Vector],
-    train_spaceaug: set[Concept],
+    original_reps: dict[str, list[float]],
+    spaceaug_reps: dict[str, list[float]],
+    train_spaceaug: set[str],
 ) -> np.ndarray:
     """Collect training vectors for a node.
 
@@ -41,9 +40,9 @@ def _collect_training_vectors(
     """
     concepts = node.concepts()
     subtree_concepts = set(concepts)
-    vecs: list[Vector] = [original_reps[c] for c in concepts]
+    vecs: list[list[float]] = [original_reps[c] for c in concepts]
     for sa_concept in train_spaceaug:
-        orig = Concept(str(sa_concept).strip())
+        orig = sa_concept.strip()
         if orig in subtree_concepts:
             vecs.append(spaceaug_reps[sa_concept])
     return np.array(vecs)
@@ -51,8 +50,8 @@ def _collect_training_vectors(
 
 def _evaluate_sensitivity(
     tree: KnowledgeTree,
-    original_reps: dict[Concept, Vector],
-    spaceaug_reps: dict[Concept, Vector],
+    original_reps: dict[str, list[float]],
+    spaceaug_reps: dict[str, list[float]],
     fit_fn: Callable[[np.ndarray], Shape],
     rng: np.random.Generator,
     train_fraction: float = 0.0,
@@ -63,9 +62,9 @@ def _evaluate_sensitivity(
     train_sa_set = set(train_sa)
 
     # Build mapping: original concept -> list of test spaceaug concepts.
-    test_sa_by_orig: dict[Concept, list[Concept]] = {}
+    test_sa_by_orig: dict[str, list[str]] = {}
     for sa_concept in test_sa:
-        orig = Concept(str(sa_concept).strip())
+        orig = sa_concept.strip()
         test_sa_by_orig.setdefault(orig, []).append(sa_concept)
 
     # Fit shapes and evaluate per-node containment in a single DFS pass.
