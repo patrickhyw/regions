@@ -3,6 +3,10 @@ from typing import NamedTuple
 import numpy as np
 from scipy.stats import chi2
 
+# Word embeddings live in high-dimensional space where d >> n. Forming
+# d x d covariance matrices would be singular and expensive, so we work
+# with n x n Gram matrices and use Ledoit-Wolf shrinkage to regularize.
+
 
 class Ellipsoid(NamedTuple):
     center: np.ndarray  # (d,) unit-norm mean
@@ -18,6 +22,8 @@ class Ellipsoid(NamedTuple):
         without forming a d x d precision matrix.
         """
         diff = np.asarray(vec) - self.center
+        # Woodbury expansion of diff @ Sigma^{-1} @ diff:
+        # (1/alpha)*||diff||^2 - (1/alpha^2)*z @ M^{-1} @ z.
         mahal = float(diff @ diff) / self.alpha
         if self.X.shape[0] > 0:
             z = self.X @ diff
@@ -39,17 +45,22 @@ def _ledoit_wolf_shrinkage_gram(X: np.ndarray, G: np.ndarray) -> float:
     # delta = ||S - mu*I||_F^2 / d
     G_frob_sq = float((G**2).sum())
     delta = G_frob_sq / (n**2 * d) - mu**2
+    # The sample covariance is already a scaled identity.
     if delta == 0:
         return 1.0
     # beta from fourth-moment terms, all via G
     diag_G_sq_sum = float((np.diag(G) ** 2).sum())
     beta = (diag_G_sq_sum / n - G_frob_sq / n**2) / (d * n)
-    beta = min(beta, delta)
+    beta = min(beta, delta)  # Clamp keeps shrinkage in [0, 1].
     return 0.0 if beta == 0 else beta / delta
 
 
 def _identity_ellipsoid(center: np.ndarray, d: int, threshold: float) -> Ellipsoid:
-    """Return an identity-precision Ellipsoid (fallback case)."""
+    """Return an identity-precision Ellipsoid (fallback case).
+
+    Identity precision reduces Mahalanobis to scaled Euclidean distance.
+    Empty X and M_inv skip the Woodbury correction term.
+    """
     return Ellipsoid(
         center=center,
         alpha=1.0,
@@ -68,25 +79,36 @@ def hyperellipsoid(vecs: list[list[float]]) -> Ellipsoid:
     """
     arr = np.array(vecs)
     mean = arr.mean(axis=0)
+    # Embeddings are unit-normalized, so direction matters more than
+    # magnitude. Use the unit-norm mean as the ellipsoid center.
     center = mean / np.linalg.norm(mean)
     centered = arr - center
     n, d = centered.shape
+    # Under a Gaussian model, the 95th-percentile chi-squared value
+    # gives a region containing ~95% of the probability mass.
     threshold = float(chi2.ppf(0.95, df=d))
+    # Ledoit-Wolf needs at least 3 samples for a meaningful shrinkage
+    # estimate.
     if n < 3:
         return _identity_ellipsoid(center, d, threshold)
     # Gram matrix (n x n)
     G = centered @ centered.T
     # Shrinkage coefficient
     mu = float(np.trace(G)) / (n * d)
+    # Zero average eigenvalue means all points coincide after centering.
     if mu == 0:
         return _identity_ellipsoid(center, d, threshold)
     s = _ledoit_wolf_shrinkage_gram(centered, G)
+    # s=1 means pure identity (no data information); s=0 means no
+    # regularization (singular when d > n). Both fall back to identity.
     if not (0.0 < s < 1.0):
         return _identity_ellipsoid(center, d, threshold)
-    # Factored covariance: Sigma = alpha * I + gamma * X.T @ X
+    # Sigma = s*mu*I + (1-s)/n * X^T X. Naming alpha (identity weight)
+    # and gamma (data weight) keeps the Woodbury formula clean.
     alpha = s * mu
     gamma = (1.0 - s) / n
-    # Woodbury core: M = (1 / gamma) * I_n + (1 / alpha) * G
+    # Woodbury identity: invert this n x n matrix instead of the
+    # d x d Sigma, which is cheap when n << d.
     M = (1.0 / gamma) * np.eye(n) + (1.0 / alpha) * G
     M_inv = np.linalg.inv(M)
     return Ellipsoid(
