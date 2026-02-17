@@ -302,31 +302,3 @@ def build_tree(
         if "Duplicate concepts" in str(e):
             raise ValueError(f"Duplicate concepts in tree, errors: {e.errors()}") from e
         raise
-
-
-def main(name: str) -> None:
-    """Look up *name* in TREE_DIRECTORY, build the tree, and write to disk."""
-    spec = TREE_DIRECTORY[name]
-    root = wn.synset(spec.root_synset)
-    tree = build_tree(
-        root,
-        dag_handling=spec.dag_handling,
-        num_lemmas=spec.num_lemmas,
-        include_definition=spec.include_definition,
-        duplicate_handling=spec.dup_handling,
-        replace=spec.replace,
-    )
-    path = get_tree_path(name)
-    path.write_text(tree.model_dump_json(indent=2))
-    print(f"Wrote {path}")
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Build a tree from a TREE_DIRECTORY entry."
-    )
-    parser.add_argument(
-        "name", choices=TREE_DIRECTORY.keys(), help="Tree name to build."
-    )
-    args = parser.parse_args()
-    main(args.name)
