@@ -4,8 +4,9 @@ import math
 from typing import NamedTuple
 
 import numpy as np
-from pydmodels.knowledge import KnowledgeNode
 from scipy.spatial import ConvexHull, QhullError
+
+from tree import KnowledgeNode
 
 # QHull needs n > d, but word embeddings typically have n <= d. We use
 # PCA to project points into the subspace they span, build the hull

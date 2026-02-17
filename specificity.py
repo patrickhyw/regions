@@ -1,33 +1,30 @@
 from __future__ import annotations
 
 import argparse
-import json
 from collections.abc import Callable
 from itertools import combinations
-from typing import NamedTuple, Protocol
+from typing import Literal, NamedTuple, Protocol
 
-from pydmodels.knowledge import Concept, KnowledgeNode
-from pydmodels.representation import RepresentationCollection, Vector
-from repgen.util import get_rep_path
 from tqdm import tqdm
-from treegen.util import TREES_DIR
 
 from convexhull import convex_hull
+from embedding import get_embeddings
 from hyperellipsoid import hyperellipsoid
+from tree import KnowledgeNode, build_named_tree
 
 MAX_SIBLING_RATIO = 3.0
 MIN_SUBTREE_SIZE = 10
 
 
 class Shape(Protocol):
-    def contains(self, vec: Vector) -> bool: ...
+    def contains(self, vec: list[float]) -> bool: ...
 
 
-FitFn = Callable[[KnowledgeNode, dict[Concept, Vector]], Shape]
+FitFn = Callable[[KnowledgeNode, dict[str, list[float]]], Shape]
 
 
 class PairResult(NamedTuple):
-    concepts: tuple[Concept, Concept]
+    concepts: tuple[str, str]
     correct: int
     in_neither: int
     in_both: int
@@ -36,10 +33,10 @@ class PairResult(NamedTuple):
 
 def fit_all(
     node: KnowledgeNode,
-    representations: dict[Concept, Vector],
+    representations: dict[str, list[float]],
     fit: FitFn,
     progress: bool = False,
-) -> dict[Concept, Shape]:
+) -> dict[str, Shape]:
     """Compute shapes for every node in the tree.
 
     Returns dict mapping each node's concept to its Shape.
@@ -51,7 +48,7 @@ def fit_all(
         n = stack.pop()
         nodes.append(n)
         stack.extend(n.children)
-    result: dict[Concept, Shape] = {}
+    result: dict[str, Shape] = {}
     for n in tqdm(nodes, desc="Fitting shapes", disable=not progress):
         result[n.concept] = fit(n, representations)
     return result
@@ -59,10 +56,10 @@ def fit_all(
 
 def evaluate_sibling_pairs(
     node: KnowledgeNode,
-    representations: dict[Concept, Vector],
+    representations: dict[str, list[float]],
     fit: FitFn,
     progress: bool = False,
-    _shapes: dict[Concept, Shape] | None = None,
+    _shapes: dict[str, Shape] | None = None,
 ) -> list[PairResult]:
     """Evaluate sibling pair separation using shapes.
 
@@ -82,8 +79,9 @@ def evaluate_sibling_pairs(
         in_neither = 0
         in_both = 0
         total = 0
-        # For each subtree, check whether its concepts fall exclusively in
-        # its own shape and not in the sibling's shape.
+        # For each subtree, check whether its concepts fall exclusively
+        # in its own shape and not in the sibling's shape. The fourth
+        # case (in other but not own) is implicitly wrong.
         for own, other in [(a, b), (b, a)]:
             own_shape = _shapes[own.concept]
             other_shape = _shapes[other.concept]
@@ -119,6 +117,34 @@ def evaluate_sibling_pairs(
     return results
 
 
+def _hyperellipsoid_fit(
+    node: KnowledgeNode,
+    representations: dict[str, list[float]],
+) -> Shape:
+    """Adapt hyperellipsoid to the FitFn signature."""
+    return hyperellipsoid([representations[c] for c in node.concepts()])
+
+
+_FIT_FNS: dict[str, FitFn] = {
+    "hyperellipsoid": _hyperellipsoid_fit,
+    "convexhull": convex_hull,
+}
+
+
+def specificity(
+    shape: Literal["hyperellipsoid", "convexhull"],
+    tree_name: str,
+    dimension: int,
+    progress: bool = False,
+) -> list[PairResult]:
+    """Run specificity analysis for a named tree and embedding dimension."""
+    tree = build_named_tree(tree_name)
+    concepts = tree.root.concepts()
+    embeddings = get_embeddings(concepts, dimension=dimension)
+    representations = dict(zip(concepts, embeddings))
+    return evaluate_sibling_pairs(tree.root, representations, _FIT_FNS[shape], progress)
+
+
 def print_results(results: list[PairResult]) -> None:
     """Print per-pair accuracy and overall accuracy summary."""
 
@@ -151,12 +177,13 @@ if __name__ == "__main__":
         description="Evaluate shape separation of sibling pairs."
     )
     parser.add_argument(
-        "rep_name",
-        nargs="?",
-        default="embeddings_manual_tiny",
-        help="Name of the rep (maps to"
-        " {rep_name}_representations.json)."
-        ' Default: "embeddings_manual_tiny".',
+        "tree_name",
+        help="Name of the tree (e.g. 'manual_tiny').",
+    )
+    parser.add_argument(
+        "dimension",
+        type=int,
+        help="Dimension of embeddings.",
     )
     parser.add_argument(
         "--shape",
@@ -166,21 +193,11 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    rep_path = get_rep_path(args.rep_name)
-    raw = json.loads(rep_path.read_text())
-    # Resolve the knowledge tree path relative to the trees directory.
-    raw["knowledge_tree"] = str(TREES_DIR / raw["knowledge_tree"])
-    repcol = RepresentationCollection.model_validate(raw)
-
-    fit_fns: dict[str, FitFn] = {
-        "hyperellipsoid": hyperellipsoid,
-        "convexhull": convex_hull,
-    }
     print_results(
-        evaluate_sibling_pairs(
-            repcol.knowledge_tree.root,
-            repcol.representations,
-            fit=fit_fns[args.shape],
+        specificity(
+            shape=args.shape,
+            tree_name=args.tree_name,
+            dimension=args.dimension,
             progress=True,
         )
     )
