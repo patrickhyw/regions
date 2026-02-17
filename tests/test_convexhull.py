@@ -198,22 +198,19 @@ class TestConvexHull:
     ) -> None:
         """With k < 1.0, only a fraction of points are sampled."""
         all_result = convex_hull(sampling_tree, sampling_reps)
-        rng = np.random.default_rng(seed=42)
-        k_result = convex_hull(sampling_tree, sampling_reps, k=0.4, rng=rng)
+        k_result = convex_hull(sampling_tree, sampling_reps, k=0.4)
         shapes_differ = k_result.equations.shape != all_result.equations.shape
         center_differs = not np.allclose(k_result.center, all_result.center)
         assert shapes_differ or center_differs
 
-    def test_same_seed_gives_same_result(
+    def test_k_sampling_is_deterministic(
         self,
         sampling_tree: KnowledgeNode,
         sampling_reps: dict[str, list[float]],
     ) -> None:
-        """Two calls with the same seed produce identical results."""
-        rng1 = np.random.default_rng(seed=7)
-        r1 = convex_hull(sampling_tree, sampling_reps, k=0.4, rng=rng1)
-        rng2 = np.random.default_rng(seed=7)
-        r2 = convex_hull(sampling_tree, sampling_reps, k=0.4, rng=rng2)
+        """Two calls produce identical results (seed is hardcoded)."""
+        r1 = convex_hull(sampling_tree, sampling_reps, k=0.4)
+        r2 = convex_hull(sampling_tree, sampling_reps, k=0.4)
         np.testing.assert_allclose(r1.equations, r2.equations)
         np.testing.assert_allclose(r1.center, r2.center)
         assert r1.radius == pytest.approx(r2.radius)
