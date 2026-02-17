@@ -4,7 +4,7 @@ from collections.abc import Callable
 from typing import Literal, NamedTuple
 
 import numpy as np
-from analytics.pairwise import Shape
+from analytics.specificity import Shape
 from pydmodels.knowledge import Concept, KnowledgeNode, KnowledgeTree
 from pydmodels.representation import Vector
 

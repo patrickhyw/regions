@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from pairwise import MAX_SIBLING_RATIO, MIN_SUBTREE_SIZE
+from specificity import MAX_SIBLING_RATIO, MIN_SUBTREE_SIZE
 
 
-class TestPairwiseConstants:
+class TestSpecificityConstants:
     @pytest.mark.parametrize(
         ("constant", "expected"),
         [
