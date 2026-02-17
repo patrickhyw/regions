@@ -71,24 +71,41 @@ class TreeSpec:
 
 
 TREE_DIRECTORY: dict[str, TreeSpec] = {
+    "animalmax": TreeSpec(
+        root_synset="animal.n.01",
+        dag_handling="collapse",
+        num_lemmas="all",
+        include_definition=True,
+        replace=dict(),
+    ),
     "animalmin": TreeSpec(
         root_synset="animal.n.01",
         dag_handling="collapse",
         dup_handling="prune",
+    ),
+    "mammalmax": TreeSpec(
+        root_synset="mammal.n.01",
+        dag_handling="collapse",
+        num_lemmas="all",
+        include_definition=True,
+        replace=dict(),
     ),
     "mammalmin": TreeSpec(
         root_synset="mammal.n.01",
         dag_handling="collapse",
         dup_handling="prune",
     ),
+    "carnivoremax": TreeSpec(
+        root_synset="carnivore.n.01",
+        num_lemmas="all",
+        include_definition=True,
+        replace=dict(),
+    ),
     "carnivoremin": TreeSpec(
         root_synset="carnivore.n.01",
         dup_handling="prune",
     ),
-    "bovidmin": TreeSpec(
-        root_synset="bovid.n.01",
-        dup_handling="prune",
-    ),
+    "bovidmin": TreeSpec(root_synset="bovid.n.01", dup_handling="prune"),
     "primate": TreeSpec(root_synset="primate.n.02"),
     "monkey": TreeSpec(root_synset="monkey.n.01"),
     "oldworldmonkey": TreeSpec(root_synset="old_world_monkey.n.01"),
@@ -299,14 +316,14 @@ def main(name: str) -> None:
         duplicate_handling=spec.dup_handling,
         replace=spec.replace,
     )
-    path = get_tree_path(f"wordnet_{name}")
+    path = get_tree_path(name)
     path.write_text(tree.model_dump_json(indent=2))
     print(f"Wrote {path}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Build a WordNet tree from a TREE_DIRECTORY entry."
+        description="Build a tree from a TREE_DIRECTORY entry."
     )
     parser.add_argument(
         "name", choices=TREE_DIRECTORY.keys(), help="Tree name to build."
