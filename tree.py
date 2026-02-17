@@ -35,6 +35,16 @@ class KnowledgeTree(BaseModel):
 
     root: KnowledgeNode
 
+    def find(self, concept: str) -> KnowledgeNode:
+        """DFS for a node whose .concept == concept. Raises ValueError if not found."""
+        stack = [self.root]
+        while stack:
+            node = stack.pop()
+            if node.concept == concept:
+                return node
+            stack.extend(node.children)
+        raise ValueError(f"Concept {concept!r} not found in tree")
+
     @model_validator(mode="after")
     def _validate_unique_concepts(self) -> KnowledgeTree:
         counts = Counter(self.root.concepts())
@@ -303,4 +313,12 @@ TREE_DIRECTORY: dict[str, TreeSpec] = {
 
 
 def build_named_tree(name: str) -> KnowledgeTree:
-    return build_tree(wn.synset(TREE_DIRECTORY[name].root_synset))
+    spec = TREE_DIRECTORY[name]
+    return build_tree(
+        wn.synset(spec.root_synset),
+        dag_handling=spec.dag_handling,
+        num_lemmas=spec.num_lemmas,
+        include_definition=spec.include_definition,
+        duplicate_handling=spec.dup_handling,
+        replace=spec.replace,
+    )

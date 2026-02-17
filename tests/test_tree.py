@@ -1,8 +1,17 @@
+import json
+from collections.abc import Iterator
+from pathlib import Path
+
 import pytest
 from pydantic import BaseModel, ValidationError
-from pydmodels.knowledge import Concept, KnowledgeNode, KnowledgeTree
 
-from tree import TREE_DIRECTORY, TreeSpec
+from tree import (
+    TREE_DIRECTORY,
+    KnowledgeNode,
+    KnowledgeTree,
+    TreeSpec,
+    build_tree,
+)
 
 
 class TestKnowledgeTree:
@@ -10,12 +19,12 @@ class TestKnowledgeTree:
     def tree(self) -> KnowledgeTree:
         return KnowledgeTree(
             root=KnowledgeNode(
-                concept=Concept("animal"),
+                concept="animal",
                 children=[
-                    KnowledgeNode(concept=Concept("dog")),
+                    KnowledgeNode(concept="dog"),
                     KnowledgeNode(
-                        concept=Concept("cat"),
-                        children=[KnowledgeNode(concept=Concept("persian"))],
+                        concept="cat",
+                        children=[KnowledgeNode(concept="persian")],
                     ),
                 ],
             )
@@ -23,35 +32,47 @@ class TestKnowledgeTree:
 
     def test_concepts_returns_all(self, tree: KnowledgeTree) -> None:
         assert tree.root.concepts() == [
-            Concept("animal"),
-            Concept("dog"),
-            Concept("cat"),
-            Concept("persian"),
+            "animal",
+            "dog",
+            "cat",
+            "persian",
         ]
 
     def test_concepts_single_node(self) -> None:
-        tree = KnowledgeTree(root=KnowledgeNode(concept=Concept("root")))
-        assert tree.root.concepts() == [Concept("root")]
+        tree = KnowledgeTree(root=KnowledgeNode(concept="root"))
+        assert tree.root.concepts() == ["root"]
 
-    def test_unique_concepts(self):
+    def test_unique_concepts(self) -> None:
         KnowledgeTree(
             root=KnowledgeNode(
-                concept=Concept("animal"),
+                concept="animal",
                 children=[
-                    KnowledgeNode(concept=Concept("dog"), children=[]),
-                    KnowledgeNode(concept=Concept("cat"), children=[]),
+                    KnowledgeNode(concept="dog"),
+                    KnowledgeNode(concept="cat"),
                 ],
             )
         )
 
-    def test_rejects_duplicate_concepts(self):
+    def test_find_returns_node(self, tree: KnowledgeTree) -> None:
+        node = tree.find("persian")
+        assert node.concept == "persian"
+
+    def test_find_root(self, tree: KnowledgeTree) -> None:
+        node = tree.find("animal")
+        assert node is tree.root
+
+    def test_find_missing_raises(self, tree: KnowledgeTree) -> None:
+        with pytest.raises(ValueError, match="not found"):
+            tree.find("nonexistent")
+
+    def test_rejects_duplicate_concepts(self) -> None:
         with pytest.raises(ValidationError):
             KnowledgeTree(
                 root=KnowledgeNode(
-                    concept=Concept("animal"),
+                    concept="animal",
                     children=[
-                        KnowledgeNode(concept=Concept("dog"), children=[]),
-                        KnowledgeNode(concept=Concept("dog"), children=[]),
+                        KnowledgeNode(concept="dog"),
+                        KnowledgeNode(concept="dog"),
                     ],
                 )
             )
@@ -62,41 +83,29 @@ class TestKnowledgeTree:
     )
     def test_frozen(self, cls: type[BaseModel], field: str) -> None:
         if cls is KnowledgeNode:
-            instance = KnowledgeNode(concept=Concept("x"))
+            instance = KnowledgeNode(concept="x")
         else:
-            instance = KnowledgeTree(root=KnowledgeNode(concept=Concept("x")))
+            instance = KnowledgeTree(root=KnowledgeNode(concept="x"))
         with pytest.raises(ValidationError):
             instance.__setattr__(field, "new")
 
-    def test_rejects_duplicate_concepts_nested(self):
+    def test_rejects_duplicate_concepts_nested(self) -> None:
         with pytest.raises(ValidationError):
             KnowledgeTree(
                 root=KnowledgeNode(
-                    concept=Concept("animal"),
+                    concept="animal",
                     children=[
                         KnowledgeNode(
-                            concept=Concept("dog"),
-                            children=[
-                                KnowledgeNode(concept=Concept("poodle"), children=[]),
-                            ],
+                            concept="dog",
+                            children=[KnowledgeNode(concept="poodle")],
                         ),
                         KnowledgeNode(
-                            concept=Concept("cat"),
-                            children=[
-                                KnowledgeNode(concept=Concept("poodle"), children=[]),
-                            ],
+                            concept="cat",
+                            children=[KnowledgeNode(concept="poodle")],
                         ),
                     ],
                 )
             )
-
-
-import json
-from pathlib import Path
-from typing import Iterator
-
-import pytest
-from treegen.wordnet import build_tree
 
 
 class _MockSynset:
