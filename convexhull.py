@@ -4,8 +4,7 @@ import math
 from typing import NamedTuple
 
 import numpy as np
-from pydmodels.knowledge import Concept, KnowledgeNode
-from pydmodels.representation import Vector
+from pydmodels.knowledge import KnowledgeNode
 from scipy.spatial import ConvexHull, QhullError
 
 _SUBSPACE_TOL: float = 1e-10
@@ -56,7 +55,7 @@ class Hull(NamedTuple):
     radius: float  # max distance from center (for fallback ball)
     basis: np.ndarray | None = None  # (k, d) orthonormal basis, or None for ambient
 
-    def contains(self, vec: Vector) -> bool:
+    def contains(self, vec: list[float]) -> bool:
         """Check whether a vector falls within this hull.
 
         Uses halfplane equations when available, otherwise falls back
@@ -149,22 +148,19 @@ def fit_hull(vecs: np.ndarray) -> Hull:
 
 def convex_hull(
     node: KnowledgeNode,
-    representations: dict[Concept, Vector],
+    representations: dict[str, list[float]],
     k: float | None = None,
-    rng: np.random.Generator | None = None,
 ) -> Hull:
     """Compute the convex hull for a subtree.
 
     If k is given (a fraction between 0 and 1), randomly sample
-    ceil(k * num_concepts) concepts. Uses rng for sampling; if rng
-    is None, creates one with seed=0.
+    ceil(k * num_concepts) concepts.
     """
     concepts = node.concepts()
     if k is not None:
         sample_size = math.ceil(k * len(concepts))
         if sample_size < len(concepts):
-            if rng is None:
-                rng = np.random.default_rng(seed=0)
+            rng = np.random.default_rng(seed=0)
             indices = rng.choice(len(concepts), size=sample_size, replace=False)
             concepts = [concepts[i] for i in indices]
     vecs = np.array([representations[c] for c in concepts])

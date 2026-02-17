@@ -15,7 +15,6 @@ from scipy.spatial import ConvexHull
 @pytest.fixture()
 def triangle_hull() -> Hull:
     """Convex hull of a 2D triangle with vertices (0,0), (4,0), (0,4)."""
-    vecs = np.array([[0.0, 0.0], [4.0, 0.0], [0.0, 4.0]])
     return convex_hull(
         KnowledgeNode(
             concept="r",
@@ -25,9 +24,9 @@ def triangle_hull() -> Hull:
             ],
         ),
         {
-            "r": vecs[0].tolist(),
-            "a": vecs[1].tolist(),
-            "b": vecs[2].tolist(),
+            "r": [0.0, 0.0],
+            "a": [4.0, 0.0],
+            "b": [0.0, 4.0],
         },
     )
 
