@@ -26,4 +26,4 @@ Exploring how features can be represented as regions instead of directions.
 | Hypersphere | yes | yes | yes | ~100% | ~10% |
 | **Hyperellipsoid + shrinkage** | **yes** | **yes** | **yes** | **~90%** | **~90%** |
 
-Hyperellipsoids have a good balance of all desired properties while having high sensitivity and high specificity.
+Hyperellipsoids + shrinkage hits the sweet spot across all desired properties.
