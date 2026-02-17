@@ -1,12 +1,9 @@
 import argparse
-import json
 from collections.abc import Callable
 from typing import Literal, NamedTuple
 
 import numpy as np
-from pydmodels.knowledge import KnowledgeNode, KnowledgeTree
-from pydmodels.representation import RepresentationCollection
-from repgen.util import get_rep_path
+from pydmodels.knowledge import KnowledgeNode
 
 from convexhull import fit_hull
 from embedding import get_embeddings
@@ -19,6 +16,15 @@ class NodeResult(NamedTuple):
     concept: str
     contained: int
     total: int
+
+
+def _spaceaug_concepts(concepts: list[str]) -> list[str]:
+    """Generate spaceaug variants for each concept.
+
+    For each concept, generates three whitespace variants:
+    leading space, trailing space, and both.
+    """
+    return [variant for c in concepts for variant in (f" {c}", f"{c} ", f" {c} ")]
 
 
 def _split_spaceaug(
@@ -55,52 +61,6 @@ def _collect_training_vectors(
     return np.array(vecs)
 
 
-def _evaluate_sensitivity(
-    tree_name: str,
-    dim: int,
-    fit_fn: Callable[[np.ndarray], Shape],
-    train_fraction: float = 0.0,
-) -> list[NodeResult]:
-    """Core sensitivity evaluation (no I/O)."""
-    tree = build_named_tree(tree_name)
-    original_reps = get_embeddings(tree.concepts(), dim)
-    sa_concepts = list(spaceaug_reps)
-    train_sa, test_sa = _split_spaceaug(sa_concepts, train_fraction)
-    train_sa_set = set(train_sa)
-
-    # Build mapping: original concept -> list of test spaceaug concepts.
-    test_sa_by_orig: dict[str, list[str]] = {}
-    for sa_concept in test_sa:
-        orig = sa_concept.strip()
-        test_sa_by_orig.setdefault(orig, []).append(sa_concept)
-
-    # Fit shapes and evaluate per-node containment in a single DFS pass.
-    results: list[NodeResult] = []
-    stack = [tree.root]
-    while stack:
-        node = stack.pop()
-        vecs = _collect_training_vectors(
-            node, original_reps, spaceaug_reps, train_sa_set
-        )
-        shape = fit_fn(vecs)
-        contained = 0
-        total = 0
-        for orig_concept in node.concepts():
-            for sa_concept in test_sa_by_orig.get(orig_concept, []):
-                if shape.contains(spaceaug_reps[sa_concept]):
-                    contained += 1
-                total += 1
-        results.append(
-            NodeResult(
-                concept=node.concept,
-                contained=contained,
-                total=total,
-            )
-        )
-        stack.extend(node.children)
-    return results
-
-
 def print_node_results(results: list[NodeResult]) -> None:
     """Print per-node containment rate and overall summary."""
 
@@ -131,26 +91,58 @@ def sensitivity(
 ) -> list[NodeResult]:
     """Run sensitivity analysis.
 
-    Loads data and delegates to _evaluate_sensitivity.
+    Builds the tree, generates spaceaug concepts, fetches embeddings,
+    fits shapes per node, and evaluates containment of held-out
+    spaceaug vectors.
     """
     tree = build_named_tree(tree_name)
+    concepts = tree.root.concepts()
+    sa_concepts = _spaceaug_concepts(concepts)
 
-    def load_reps(rep_name: str) -> RepresentationCollection:
-        raw = json.loads(get_rep_path(rep_name).read_text())
-        raw["knowledge_tree"] = str(TREES_DIR / raw["knowledge_tree"])
-        return RepresentationCollection.model_validate(raw)
+    embeddings = get_embeddings(concepts + sa_concepts, dimension=dimension)
+    original_reps = dict(zip(concepts, embeddings[: len(concepts)]))
+    spaceaug_reps = dict(zip(sa_concepts, embeddings[len(concepts) :]))
 
-    orig_repcol = load_reps(f"embeddings_{tree_name}_d{dimension}")
-    sa_repcol = load_reps(f"embeddings_spaceaug_{tree_name}_d{dimension}")
+    fit_fns: dict[str, Callable[[np.ndarray], Shape]] = {
+        "hyperellipsoid": fit_ellipsoid,
+        "convexhull": fit_hull,
+    }
+    fit_fn = fit_fns[shape]
 
-    fit_fns = {"hyperellipsoid": fit_ellipsoid, "convexhull": fit_hull}
-    return _evaluate_sensitivity(
-        tree,
-        orig_repcol.representations,
-        sa_repcol.representations,
-        fit_fn=fit_fns[shape],
-        train_fraction=train_fraction,
-    )
+    train_sa, test_sa = _split_spaceaug(sa_concepts, train_fraction)
+    train_sa_set = set(train_sa)
+
+    # Build mapping: original concept -> list of test spaceaug concepts.
+    test_sa_by_orig: dict[str, list[str]] = {}
+    for sa_concept in test_sa:
+        orig = sa_concept.strip()
+        test_sa_by_orig.setdefault(orig, []).append(sa_concept)
+
+    # Fit shapes and evaluate per-node containment in a single DFS pass.
+    results: list[NodeResult] = []
+    stack = [tree.root]
+    while stack:
+        node = stack.pop()
+        vecs = _collect_training_vectors(
+            node, original_reps, spaceaug_reps, train_sa_set
+        )
+        region = fit_fn(vecs)
+        contained = 0
+        total = 0
+        for orig_concept in node.concepts():
+            for sa_concept in test_sa_by_orig.get(orig_concept, []):
+                if region.contains(spaceaug_reps[sa_concept]):
+                    contained += 1
+                total += 1
+        results.append(
+            NodeResult(
+                concept=node.concept,
+                contained=contained,
+                total=total,
+            )
+        )
+        stack.extend(node.children)
+    return results
 
 
 if __name__ == "__main__":
