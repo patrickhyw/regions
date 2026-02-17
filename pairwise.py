@@ -142,7 +142,6 @@ def print_results(results: list[PairResult]) -> None:
 if __name__ == "__main__":
     import argparse
     import json
-    from functools import partial
 
     from analytics.convex_hull import convex_hull
     from analytics.hyperellipsoid import hyperellipsoid
@@ -167,13 +166,6 @@ if __name__ == "__main__":
         choices=["hyperellipsoid", "convex_hull"],
         help="Shape type. Default: hyperellipsoid.",
     )
-    parser.add_argument(
-        "--k",
-        type=float,
-        default=None,
-        help="Fraction of points to sample per shape"
-        " (e.g. 0.8 for 80%%). Default: use all points.",
-    )
     args = parser.parse_args()
 
     rep_path = get_rep_path(args.rep_name)
@@ -182,18 +174,15 @@ if __name__ == "__main__":
     raw["knowledge_tree"] = str(TREES_DIR / raw["knowledge_tree"])
     repcol = RepresentationCollection.model_validate(raw)
 
-    fit_fns = {
+    fit_fns: dict[str, FitFn] = {
         "hyperellipsoid": hyperellipsoid,
         "convex_hull": convex_hull,
     }
-    fit = fit_fns[args.shape]
-    if args.k is not None:
-        fit = partial(fit, k=args.k)
     print_results(
         evaluate_sibling_pairs(
             repcol.knowledge_tree.root,
             repcol.representations,
-            fit=fit,
+            fit=fit_fns[args.shape],
             progress=True,
         )
     )
