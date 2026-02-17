@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import pytest
 
 from specificity import MAX_SIBLING_RATIO, MIN_SUBTREE_SIZE
