@@ -16,10 +16,10 @@ class NodeResult(NamedTuple):
 
 def _split_spaceaug(
     concepts: list[str],
-    rng: np.random.Generator,
     train_fraction: float,
 ) -> tuple[list[str], list[str]]:
     """Split spaceaug concepts into train/test by the given fraction."""
+    rng = np.random.default_rng(seed=0)
     indices = rng.permutation(len(concepts))
     mid = int(len(concepts) * train_fraction)
     train = [concepts[i] for i in indices[:mid]]
@@ -53,12 +53,11 @@ def _evaluate_sensitivity(
     original_reps: dict[str, list[float]],
     spaceaug_reps: dict[str, list[float]],
     fit_fn: Callable[[np.ndarray], Shape],
-    rng: np.random.Generator,
     train_fraction: float = 0.0,
 ) -> list[NodeResult]:
     """Core sensitivity evaluation (no I/O)."""
     sa_concepts = list(spaceaug_reps)
-    train_sa, test_sa = _split_spaceaug(sa_concepts, rng, train_fraction)
+    train_sa, test_sa = _split_spaceaug(sa_concepts, train_fraction)
     train_sa_set = set(train_sa)
 
     # Build mapping: original concept -> list of test spaceaug concepts.
@@ -134,8 +133,6 @@ def sensitivity(
     from repgen.util import get_rep_path
     from treegen.util import TREES_DIR, get_tree_path
 
-    rng = np.random.default_rng(seed=0)
-
     tree_path = get_tree_path(tree_name)
     tree = KnowledgeTree.model_validate_json(tree_path.read_text())
 
@@ -153,7 +150,6 @@ def sensitivity(
         orig_repcol.representations,
         sa_repcol.representations,
         fit_fn=fit_fns[shape],
-        rng=rng,
         train_fraction=train_fraction,
     )
 
