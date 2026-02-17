@@ -615,10 +615,10 @@ class TestBuildTree:
         assert set(tree.root.concepts()) == {"root", "c"}
 
 
-class TestAnimalReplaceWhenMinimalJson:
+class TestAnimalReplaceJson:
     @pytest.fixture()
     def data(self) -> dict[str, str | None]:
-        path = Path(__file__).parent.parent / "animal_replace_when_minimal.json"
+        path = Path(__file__).parent.parent / "animal_replace.json"
         with open(path) as f:
             return json.load(f)
 
@@ -632,6 +632,6 @@ class TestAnimalReplaceWhenMinimalJson:
     def test_loaded_dict_matches_module_constant(
         self, data: dict[str, str | None]
     ) -> None:
-        from tree import ANIMAL_REPLACE_WHEN_MINIMAL
+        from tree import ANIMAL_REPLACE
 
-        assert data == ANIMAL_REPLACE_WHEN_MINIMAL
+        assert data == ANIMAL_REPLACE
