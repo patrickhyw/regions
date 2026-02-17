@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import numpy as np
 from diskcache import Cache
@@ -20,6 +21,8 @@ MAX_SLEEP = 60
 # Values explicitly mentioned in
 # https://ai.google.dev/gemini-api/docs/embeddings
 VALID_DIMENSIONALITIES = {128, 256, 512, 768, 1536, 2048, 3072}
+
+CACHE = Cache(Path(__file__).resolve().parent / ".cache")
 
 
 def _validate_dimensionality(dimensionality: int) -> None:
@@ -69,7 +72,6 @@ def get_embeddings(
     texts: list[str],
     *,
     dimensionality: int,
-    cache: Cache,
 ) -> list[list[float]]:
     """Get embeddings for texts, using cache when possible.
 
@@ -82,7 +84,7 @@ def get_embeddings(
     uncached_indices: list[int] = []
 
     for i, text in enumerate(texts):
-        cached = cache.get((text, dimensionality))
+        cached = CACHE.get((text, dimensionality))
         if cached is not None:
             results[i] = cached
         else:
@@ -103,6 +105,6 @@ def get_embeddings(
         normalized = normalize_embeddings(all_embeddings)
         for idx, embedding in zip(uncached_indices, normalized):
             results[idx] = embedding
-            cache.set((texts[idx], dimensionality), embedding)
+            CACHE.set((texts[idx], dimensionality), embedding)
 
     return [results[i] for i in range(len(texts))]

@@ -10,6 +10,7 @@ import pytest
 from google.genai.errors import ClientError, ServerError
 from google.genai.types import EmbedContentConfig
 
+import embedding
 from embedding import (
     embed_with_retry,
     get_embeddings,
@@ -176,8 +177,11 @@ class TestEmbedWithRetry:
 
 class TestGetEmbeddings:
     @pytest.fixture()
-    def cache(self, tmp_path: Path) -> Generator[diskcache.Cache, None, None]:
+    def cache(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> Generator[diskcache.Cache, None, None]:
         c = diskcache.Cache(tmp_path / "cache")
+        monkeypatch.setattr(embedding, "CACHE", c)
         yield c
         c.close()
 
@@ -195,7 +199,7 @@ class TestGetEmbeddings:
         mock_genai_client: MagicMock,
     ) -> None:
         """All uncached texts are fetched from the API."""
-        result = get_embeddings(["dog", "cat"], dimensionality=768, cache=cache)
+        result = get_embeddings(["dog", "cat"], dimensionality=768)
 
         assert len(result) == 2
         client = mock_genai_client.return_value
@@ -210,7 +214,7 @@ class TestGetEmbeddings:
         cache.set(("dog", 768), [1.0, 0.0])
         cache.set(("cat", 768), [0.0, 1.0])
 
-        result = get_embeddings(["dog", "cat"], dimensionality=768, cache=cache)
+        result = get_embeddings(["dog", "cat"], dimensionality=768)
 
         client = mock_genai_client.return_value
         client.models.embed_content.assert_not_called()
@@ -224,7 +228,7 @@ class TestGetEmbeddings:
         """Only uncached texts are sent to the API."""
         cache.set(("dog", 768), [1.0, 0.0])
 
-        result = get_embeddings(["dog", "cat"], dimensionality=768, cache=cache)
+        result = get_embeddings(["dog", "cat"], dimensionality=768)
 
         client = mock_genai_client.return_value
         call_args = client.models.embed_content.call_args
@@ -238,7 +242,7 @@ class TestGetEmbeddings:
         mock_genai_client: MagicMock,
     ) -> None:
         """Fetched embeddings are written back to the cache."""
-        get_embeddings(["dog"], dimensionality=768, cache=cache)
+        get_embeddings(["dog"], dimensionality=768)
 
         cached = cache.get(("dog", 768))
         assert cached is not None
@@ -250,7 +254,7 @@ class TestGetEmbeddings:
         mock_genai_client: MagicMock,
     ) -> None:
         """Fetched embeddings are normalized to unit norm."""
-        result = get_embeddings(["dog", "cat"], dimensionality=768, cache=cache)
+        result = get_embeddings(["dog", "cat"], dimensionality=768)
 
         for vec in result:
             assert np.linalg.norm(vec) == pytest.approx(1.0, abs=1e-6)
@@ -263,7 +267,7 @@ class TestGetEmbeddings:
     ) -> None:
         """Invalid dimensionalities raise ValueError before any work."""
         with pytest.raises(ValueError, match="dimensionality"):
-            get_embeddings(["dog"], dimensionality=dimensionality, cache=cache)
+            get_embeddings(["dog"], dimensionality=dimensionality)
 
     def test_batches_large_requests(
         self,
@@ -271,8 +275,13 @@ class TestGetEmbeddings:
     ) -> None:
         """Requests with >100 texts are split into batches of 100."""
 
-        def _reject_oversized_batch(**kwargs: object) -> MagicMock:
-            if len(kwargs["contents"]) > 100:
+        def _reject_oversized_batch(
+            *,
+            model: str,
+            contents: list[str],
+            config: EmbedContentConfig,
+        ) -> MagicMock:
+            if len(contents) > 100:
                 raise ClientError(
                     code=400,
                     response_json={
@@ -282,14 +291,18 @@ class TestGetEmbeddings:
                         }
                     },
                 )
-            return _fake_embed(**kwargs)
+            return _fake_embed(
+                model=model,
+                contents=contents,
+                config=config,
+            )
 
         with patch("embedding.genai.Client") as mock_cls:
             client = mock_cls.return_value
             client.models.embed_content.side_effect = _reject_oversized_batch
 
             texts = [f"concept_{i}" for i in range(150)]
-            result = get_embeddings(texts, dimensionality=768, cache=cache)
+            result = get_embeddings(texts, dimensionality=768)
 
             calls = client.models.embed_content.call_args_list
             assert len(calls) == 2
