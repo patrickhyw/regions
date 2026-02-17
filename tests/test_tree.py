@@ -14,6 +14,59 @@ from tree import (
 )
 
 
+class _MockSynset:
+    """Fake synset that quacks like an NLTK synset and is hashable by lemma names."""
+
+    def __init__(
+        self,
+        lemma_names: tuple[str, ...],
+        hyponyms: list["_MockSynset"] | None = None,
+        definition: str = "",
+        name: str = "",
+    ) -> None:
+        self._lemma_names = lemma_names
+        self._hyponyms: list[_MockSynset] = list(hyponyms) if hyponyms else []
+        self._hypernyms: list[_MockSynset] = []
+        self._definition = definition
+        self._name = name
+
+    def lemma_names(self) -> tuple[str, ...]:
+        return self._lemma_names
+
+    def hyponyms(self) -> list["_MockSynset"]:
+        return self._hyponyms
+
+    def hypernyms(self) -> list["_MockSynset"]:
+        return self._hypernyms
+
+    def definition(self) -> str:
+        return self._definition
+
+    def name(self) -> str:
+        return self._name
+
+    def __hash__(self) -> int:
+        return hash((self._lemma_names, self._name))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, _MockSynset):
+            return NotImplemented
+        return (self._lemma_names, self._name) == (
+            other._lemma_names,
+            other._name,
+        )
+
+
+def fake_synset(
+    lemma_names: list[str],
+    hyponyms: list[_MockSynset] | None = None,
+    definition: str = "",
+    name: str = "",
+) -> _MockSynset:
+    """Return an object that quacks like an NLTK synset."""
+    return _MockSynset(tuple(lemma_names), hyponyms, definition=definition, name=name)
+
+
 class TestKnowledgeTree:
     @pytest.fixture()
     def tree(self) -> KnowledgeTree:
@@ -106,59 +159,6 @@ class TestKnowledgeTree:
                     ],
                 )
             )
-
-
-class _MockSynset:
-    """Fake synset that quacks like an NLTK synset and is hashable by lemma names."""
-
-    def __init__(
-        self,
-        lemma_names: tuple[str, ...],
-        hyponyms: list["_MockSynset"] | None = None,
-        definition: str = "",
-        name: str = "",
-    ) -> None:
-        self._lemma_names = lemma_names
-        self._hyponyms: list[_MockSynset] = list(hyponyms) if hyponyms else []
-        self._hypernyms: list[_MockSynset] = []
-        self._definition = definition
-        self._name = name
-
-    def lemma_names(self) -> tuple[str, ...]:
-        return self._lemma_names
-
-    def hyponyms(self) -> list["_MockSynset"]:
-        return self._hyponyms
-
-    def hypernyms(self) -> list["_MockSynset"]:
-        return self._hypernyms
-
-    def definition(self) -> str:
-        return self._definition
-
-    def name(self) -> str:
-        return self._name
-
-    def __hash__(self) -> int:
-        return hash((self._lemma_names, self._name))
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, _MockSynset):
-            return NotImplemented
-        return (self._lemma_names, self._name) == (
-            other._lemma_names,
-            other._name,
-        )
-
-
-def fake_synset(
-    lemma_names: list[str],
-    hyponyms: list[_MockSynset] | None = None,
-    definition: str = "",
-    name: str = "",
-) -> _MockSynset:
-    """Return an object that quacks like an NLTK synset."""
-    return _MockSynset(tuple(lemma_names), hyponyms, definition=definition, name=name)
 
 
 def set_hypernyms(root: _MockSynset) -> None:

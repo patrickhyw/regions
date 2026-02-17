@@ -305,7 +305,6 @@ TREE_DIRECTORY: dict[str, TreeSpec] = {
         root_synset="carnivore.n.01",
         dup_handling="prune",
     ),
-    "bovidmin": TreeSpec(root_synset="bovid.n.01", dup_handling="prune"),
     "primate": TreeSpec(root_synset="primate.n.02"),
     "monkey": TreeSpec(root_synset="monkey.n.01"),
     "oldworldmonkey": TreeSpec(root_synset="old_world_monkey.n.01"),
