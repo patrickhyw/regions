@@ -26,3 +26,5 @@ Exploring how features can be represented as regions instead of directions.
 | **Hyperellipsoid + shrinkage** | **yes** | **yes** | **yes** | **~90%** | **~90%** |
 
 Hyperellipsoids + shrinkage hits the sweet spot across all desired properties.
+
+*repo is wip, adding supporting data soon*
