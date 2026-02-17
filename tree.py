@@ -71,15 +71,6 @@ with open(_ANIMAL_REPLACE_PATH) as _f:
 
 
 TREE_DIRECTORY: dict[str, TreeSpec] = {
-    "animalmax": TreeSpec(
-        root_synset="animal.n.01",
-        dag_handling="collapse",
-        num_lemmas="all",
-        include_definition=True,
-        dup_handling="disallow",
-        replace=dict(),
-        validate_tree_size=3999,
-    ),
     "animalmin": TreeSpec(
         root_synset="animal.n.01",
         dag_handling="collapse",
@@ -89,15 +80,6 @@ TREE_DIRECTORY: dict[str, TreeSpec] = {
         replace=ANIMAL_REPLACE_WHEN_MINIMAL,
         validate_tree_size=None,
     ),
-    "mammalmax": TreeSpec(
-        root_synset="mammal.n.01",
-        dag_handling="collapse",
-        num_lemmas="all",
-        include_definition=True,
-        dup_handling="disallow",
-        replace=dict(),
-        validate_tree_size=1170,
-    ),
     "mammalmin": TreeSpec(
         root_synset="mammal.n.01",
         dag_handling="collapse",
@@ -106,15 +88,6 @@ TREE_DIRECTORY: dict[str, TreeSpec] = {
         dup_handling="prune",
         replace=ANIMAL_REPLACE_WHEN_MINIMAL,
         validate_tree_size=1126,
-    ),
-    "carnivoremax": TreeSpec(
-        root_synset="carnivore.n.01",
-        dag_handling="disallow",
-        num_lemmas="all",
-        include_definition=True,
-        dup_handling="disallow",
-        replace=dict(),
-        validate_tree_size=None,
     ),
     "carnivoremin": TreeSpec(
         root_synset="carnivore.n.01",
@@ -215,6 +188,7 @@ def build_tree(
       - Maximalist: num_lemmas="all", include_definition=True,
         duplicate_handling="disallow"
           - This ensures that no concepts are pruned while guaranteeing uniqueness.
+      - This repo only uses the "minimalist" setup right now.
 
     The replace dictionary is used to replace concept strings with new strings and
     is applied after concept formatting but before duplicate handling. This is
