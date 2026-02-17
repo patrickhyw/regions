@@ -1,6 +1,6 @@
-# Regions
+# Feature Regions
 
-Semantic regions in embedding space using geometric shapes.
+Exploring how features can be represented as regions instead of directions.
 
 ## Design Rationale
 
