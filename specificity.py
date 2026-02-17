@@ -143,7 +143,7 @@ if __name__ == "__main__":
     import argparse
     import json
 
-    from analytics.convex_hull import convex_hull
+    from analytics.convexhull import convexhull
     from analytics.hyperellipsoid import hyperellipsoid
     from pydmodels.representation import RepresentationCollection
     from repgen.util import get_rep_path
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--shape",
         default="hyperellipsoid",
-        choices=["hyperellipsoid", "convex_hull"],
+        choices=["hyperellipsoid", "convexhull"],
         help="Shape type. Default: hyperellipsoid.",
     )
     args = parser.parse_args()
@@ -176,7 +176,7 @@ if __name__ == "__main__":
 
     fit_fns: dict[str, FitFn] = {
         "hyperellipsoid": hyperellipsoid,
-        "convex_hull": convex_hull,
+        "convexhull": convexhull,
     }
     print_results(
         evaluate_sibling_pairs(

@@ -118,7 +118,7 @@ def print_node_results(results: list[NodeResult]) -> None:
 
 
 def sensitivity(
-    shape: Literal["hyperellipsoid", "convex_hull"],
+    shape: Literal["hyperellipsoid", "convexhull"],
     tree_name: str,
     dimensionality: int,
     train_fraction: float = 0.0,
@@ -129,7 +129,7 @@ def sensitivity(
     """
     import json
 
-    from analytics.convex_hull import fit_hull
+    from analytics.convexhull import fit_hull
     from analytics.hyperellipsoid import fit_ellipsoid
     from pydmodels.representation import RepresentationCollection
     from repgen.util import get_rep_path
@@ -148,7 +148,7 @@ def sensitivity(
     orig_repcol = load_reps(f"embeddings_{tree_name}_d{dimensionality}")
     sa_repcol = load_reps(f"embeddings_spaceaug_{tree_name}_d{dimensionality}")
 
-    fit_fns = {"hyperellipsoid": fit_ellipsoid, "convex_hull": fit_hull}
+    fit_fns = {"hyperellipsoid": fit_ellipsoid, "convexhull": fit_hull}
     return _evaluate_sensitivity(
         tree,
         orig_repcol.representations,
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--shape",
         default="hyperellipsoid",
-        choices=["hyperellipsoid", "convex_hull"],
+        choices=["hyperellipsoid", "convexhull"],
         help="Shape type. Default: hyperellipsoid.",
     )
     parser.add_argument(
