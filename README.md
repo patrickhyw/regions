@@ -9,13 +9,12 @@ Exploring how features can be represented as regions instead of directions.
 
 ### Goals
 
-1. **Generative** (as opposed to discriminative) — defined from one class's points only, so regions
+1. **Full-dimensional** (>0 volume) without needing `~d` points, for generalization to unseen points of the *same* class.
+2. **Generative** (as opposed to discriminative) — defined from one class's points only, so regions
   are modular.
-2. **Full-dimensional** (>0 volume) without needing `~d` points, for generalization to unseen points of the *same* class.
 3. **Bounded** (finite volume) without needing `~d` points, for generalization to unseen points of *different* classes.
 4. **Sensitivity** — correctly includes members.
 5. **Specificity** — correctly excludes non-members.
-6. **Simple** - always good to be simple.
 
 ### Types of Regions
 
