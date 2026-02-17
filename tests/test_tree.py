@@ -2,6 +2,8 @@ import pytest
 from pydantic import BaseModel, ValidationError
 from pydmodels.knowledge import Concept, KnowledgeNode, KnowledgeTree
 
+from tree import TREE_DIRECTORY, TreeSpec
+
 
 class TestKnowledgeTree:
     @pytest.fixture()
@@ -615,10 +617,57 @@ class TestBuildTree:
         assert set(tree.root.concepts()) == {"root", "c"}
 
 
+class TestTreeDirectory:
+    @pytest.mark.parametrize(
+        "name, expected",
+        [
+            pytest.param(
+                "animalmax",
+                TreeSpec(
+                    root_synset="animal.n.01",
+                    dag_handling="collapse",
+                    num_lemmas="all",
+                    include_definition=True,
+                    replace=dict(),
+                ),
+                id="animalmax",
+            ),
+            pytest.param(
+                "mammalmax",
+                TreeSpec(
+                    root_synset="mammal.n.01",
+                    dag_handling="collapse",
+                    num_lemmas="all",
+                    include_definition=True,
+                    replace=dict(),
+                ),
+                id="mammalmax",
+            ),
+            pytest.param(
+                "carnivoremax",
+                TreeSpec(
+                    root_synset="carnivore.n.01",
+                    num_lemmas="all",
+                    include_definition=True,
+                    replace=dict(),
+                ),
+                id="carnivoremax",
+            ),
+            pytest.param(
+                "bovidmin",
+                TreeSpec(root_synset="bovid.n.01", dup_handling="prune"),
+                id="bovidmin",
+            ),
+        ],
+    )
+    def test_tree_spec(self, name: str, expected: TreeSpec) -> None:
+        assert TREE_DIRECTORY[name] == expected
+
+
 class TestAnimalReplaceJson:
     @pytest.fixture()
     def data(self) -> dict[str, str | None]:
-        path = Path(__file__).parent.parent / "animal_replace.json"
+        path = Path(__file__).parent.parent / "replace.json"
         with open(path) as f:
             return json.load(f)
 
