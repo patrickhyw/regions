@@ -12,9 +12,9 @@ from google.genai.types import EmbedContentConfig
 
 import embedding
 from embedding import (
-    embed_with_retry,
+    _embed_with_retry,
+    _normalize_embeddings,
     get_embeddings,
-    normalize_embeddings,
 )
 
 
@@ -55,7 +55,7 @@ class TestNormalizeEmbeddings:
             MagicMock(values=[0.0, 5.0]),
             MagicMock(values=[6.0, 8.0]),
         ]
-        result = normalize_embeddings(embeddings)
+        result = _normalize_embeddings(embeddings)
         for vec in result:
             assert np.linalg.norm(vec) == pytest.approx(1.0, abs=1e-6)
 
@@ -63,7 +63,7 @@ class TestNormalizeEmbeddings:
         """Normalized vector points in the same direction as the original."""
         original = np.array([3.0, 4.0])
         embeddings = [MagicMock(values=original.tolist())]
-        result = normalize_embeddings(embeddings)
+        result = _normalize_embeddings(embeddings)
         expected = original / np.linalg.norm(original)
         np.testing.assert_allclose(result[0], expected, atol=1e-6)
 
@@ -101,7 +101,7 @@ class TestEmbedWithRetry:
             success,
         ]
 
-        result = embed_with_retry(mock_client, "model", ["a", "b"], dimensionality=768)
+        result = _embed_with_retry(mock_client, "model", ["a", "b"], dimensionality=768)
 
         assert result is success
         assert mock_sleep.call_args_list == [call(1), call(2)]
@@ -116,7 +116,7 @@ class TestEmbedWithRetry:
         mock_client.models.embed_content.side_effect = error
 
         with pytest.raises(ClientError):
-            embed_with_retry(mock_client, "model", ["a"], dimensionality=768)
+            _embed_with_retry(mock_client, "model", ["a"], dimensionality=768)
 
         mock_sleep.assert_not_called()
 
@@ -130,7 +130,7 @@ class TestEmbedWithRetry:
         success = MagicMock()
         mock_client.models.embed_content.side_effect = [error] * 8 + [success]
 
-        result = embed_with_retry(mock_client, "model", ["a"], dimensionality=768)
+        result = _embed_with_retry(mock_client, "model", ["a"], dimensionality=768)
 
         assert result is success
         assert mock_sleep.call_args_list == [
@@ -149,7 +149,7 @@ class TestEmbedWithRetry:
         mock_client: MagicMock,
     ) -> None:
         """A valid dimensionality is forwarded in EmbedContentConfig."""
-        embed_with_retry(mock_client, "model", ["a"], dimensionality=256)
+        _embed_with_retry(mock_client, "model", ["a"], dimensionality=256)
 
         mock_client.models.embed_content.assert_called_once_with(
             model="model",
@@ -165,7 +165,7 @@ class TestEmbedWithRetry:
     ) -> None:
         """Invalid dimensionalities raise ValueError before calling the API."""
         with pytest.raises(ValueError, match="dimensionality"):
-            embed_with_retry(
+            _embed_with_retry(
                 mock_client,
                 "model",
                 ["a"],

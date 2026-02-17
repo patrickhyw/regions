@@ -34,7 +34,7 @@ def _validate_dimensionality(dimensionality: int) -> None:
         )
 
 
-def normalize_embeddings(
+def _normalize_embeddings(
     embeddings: list[ContentEmbedding],
 ) -> list[list[float]]:
     """Normalize embedding objects to unit vectors."""
@@ -43,7 +43,7 @@ def normalize_embeddings(
     return (values / norms).tolist()
 
 
-def embed_with_retry(
+def _embed_with_retry(
     client: genai.Client,
     model: str,
     contents: list[str],
@@ -96,13 +96,13 @@ def get_embeddings(
         all_embeddings: list[ContentEmbedding] = []
         for batch_start in range(0, len(uncached_texts), BATCH_SIZE):
             batch = uncached_texts[batch_start : batch_start + BATCH_SIZE]
-            response = embed_with_retry(
+            response = _embed_with_retry(
                 client, MODEL, batch, dimensionality=dimensionality
             )
             assert response.embeddings is not None, "API returned no embeddings."
             all_embeddings.extend(response.embeddings)
 
-        normalized = normalize_embeddings(all_embeddings)
+        normalized = _normalize_embeddings(all_embeddings)
         for idx, embedding in zip(uncached_indices, normalized):
             results[idx] = embedding
             CACHE.set((texts[idx], dimensionality), embedding)
