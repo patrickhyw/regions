@@ -1,9 +1,16 @@
+import argparse
+import json
 from collections.abc import Callable
 from typing import Literal, NamedTuple
 
 import numpy as np
+from analytics.convexhull import fit_hull
+from analytics.hyperellipsoid import fit_ellipsoid
 from analytics.specificity import Shape
 from pydmodels.knowledge import KnowledgeNode, KnowledgeTree
+from pydmodels.representation import RepresentationCollection
+from repgen.util import get_rep_path
+from treegen.util import TREES_DIR, get_tree_path
 
 
 class NodeResult(NamedTuple):
@@ -123,14 +130,6 @@ def sensitivity(
 
     Loads data and delegates to _evaluate_sensitivity.
     """
-    import json
-
-    from analytics.convexhull import fit_hull
-    from analytics.hyperellipsoid import fit_ellipsoid
-    from pydmodels.representation import RepresentationCollection
-    from repgen.util import get_rep_path
-    from treegen.util import TREES_DIR, get_tree_path
-
     tree_path = get_tree_path(tree_name)
     tree = KnowledgeTree.model_validate_json(tree_path.read_text())
 
@@ -153,8 +152,6 @@ def sensitivity(
 
 
 if __name__ == "__main__":
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="Sensitivity analysis: fit shapes on training data"
         " and evaluate on held-out spaceaug data."

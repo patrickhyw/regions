@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import argparse
+import json
 from collections.abc import Callable
 from itertools import combinations
 from typing import NamedTuple, Protocol
 
+from analytics.convexhull import convexhull
+from analytics.hyperellipsoid import hyperellipsoid
 from pydmodels.knowledge import Concept, KnowledgeNode
-from pydmodels.representation import Vector
+from pydmodels.representation import RepresentationCollection, Vector
+from repgen.util import get_rep_path
 from tqdm import tqdm
+from treegen.util import TREES_DIR
 
 MAX_SIBLING_RATIO = 3.0
 MIN_SUBTREE_SIZE = 10
@@ -140,15 +146,6 @@ def print_results(results: list[PairResult]) -> None:
 
 
 if __name__ == "__main__":
-    import argparse
-    import json
-
-    from analytics.convexhull import convexhull
-    from analytics.hyperellipsoid import hyperellipsoid
-    from pydmodels.representation import RepresentationCollection
-    from repgen.util import get_rep_path
-    from treegen.util import TREES_DIR
-
     parser = argparse.ArgumentParser(
         description="Evaluate shape separation of sibling pairs."
     )
