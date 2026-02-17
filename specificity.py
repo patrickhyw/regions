@@ -3,21 +3,18 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable
 from itertools import combinations
-from typing import Literal, NamedTuple, Protocol
+from typing import Literal, NamedTuple
 
 from tqdm import tqdm
 
 from convexhull import convex_hull
 from embedding import get_embeddings
 from hyperellipsoid import hyperellipsoid
+from shape import Shape
 from tree import KnowledgeNode, build_named_tree
 
 MAX_SIBLING_RATIO = 3.0
 MIN_SUBTREE_SIZE = 10
-
-
-class Shape(Protocol):
-    def contains(self, vec: list[float]) -> bool: ...
 
 
 FitFn = Callable[[KnowledgeNode, dict[str, list[float]]], Shape]

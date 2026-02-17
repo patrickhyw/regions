@@ -8,7 +8,7 @@ from pydmodels.knowledge import KnowledgeNode
 from convexhull import fit_hull
 from embedding import get_embeddings
 from hyperellipsoid import hyperellipsoid as fit_ellipsoid
-from specificity import Shape
+from shape import Shape
 from tree import build_named_tree
 
 
