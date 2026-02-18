@@ -9,7 +9,7 @@ from convexhull import Hull
 from embedding import get_embeddings
 from hyperellipsoid import Ellipsoid
 from shape import Shape
-from tree import KnowledgeNode, build_named_tree
+from tree import build_named_tree
 
 
 class NodeResult(NamedTuple):
@@ -25,27 +25,6 @@ def _spaceaug_concept(concept: str) -> list[str]:
     space, and both.
     """
     return [f" {concept}", f"{concept} ", f" {concept} "]
-
-
-def _collect_training_embeddings(
-    node: KnowledgeNode,
-    original_embeddings: dict[str, list[float]],
-    spaceaug_embeddings: dict[str, list[float]],
-    train_spaceaug: set[str],
-) -> np.ndarray:
-    """Collect training vectors for a node.
-
-    Includes all original subtree concepts plus train-split spaceaug
-    concepts mapped to this subtree.
-    """
-    concepts = node.concepts()
-    subtree_concepts = set(concepts)
-    embeddings: list[list[float]] = [original_embeddings[c] for c in concepts]
-    for spaceaug_concept in train_spaceaug:
-        orig = spaceaug_concept.strip()
-        if orig in subtree_concepts:
-            embeddings.append(spaceaug_embeddings[spaceaug_concept])
-    return np.array(embeddings)
 
 
 def print_node_results(results: list[NodeResult]) -> None:
@@ -113,9 +92,13 @@ def sensitivity(
     stack = [tree.root]
     while stack:
         node = stack.pop()
-        train_embeddings = _collect_training_embeddings(
-            node, original_embeddings, spaceaug_embeddings, train_spaceaug_set
-        )
+        node_concepts = node.concepts()
+        subtree_concepts = set(node_concepts)
+        train_vecs: list[list[float]] = [original_embeddings[c] for c in node_concepts]
+        for sa in train_spaceaug_set:
+            if sa.strip() in subtree_concepts:
+                train_vecs.append(spaceaug_embeddings[sa])
+        train_embeddings = np.array(train_vecs)
         region = shape_cls.fit(train_embeddings)
         contained = 0
         total = 0
