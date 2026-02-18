@@ -17,13 +17,13 @@ class NodeResult(NamedTuple):
     total: int
 
 
-def _spaceaug_concepts(concepts: list[str]) -> list[str]:
-    """Generate spaceaug variants for each concept.
+def _spaceaug_concepts(concept: str) -> list[str]:
+    """Generate spaceaug variants for a concept.
 
-    For each concept, generates three whitespace variants:
-    leading space, trailing space, and both.
+    Generates three whitespace variants: leading space, trailing
+    space, and both.
     """
-    return [variant for c in concepts for variant in (f" {c}", f"{c} ", f" {c} ")]
+    return [f" {concept}", f"{concept} ", f" {concept} "]
 
 
 def _split_spaceaug(
@@ -96,7 +96,7 @@ def sensitivity(
     """
     tree = build_named_tree(tree_name)
     concepts = tree.root.concepts()
-    sa_concepts = _spaceaug_concepts(concepts)
+    sa_concepts = [v for c in concepts for v in _spaceaug_concepts(c)]
 
     embeddings = get_embeddings(concepts + sa_concepts, dimension=dimension)
     original_reps = dict(zip(concepts, embeddings[: len(concepts)]))
