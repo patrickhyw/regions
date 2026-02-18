@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 import argparse
-from collections.abc import Callable
 from typing import Literal, NamedTuple
 
 import numpy as np
 
-from convexhull import fit_hull
+from convexhull import Hull
 from embedding import get_embeddings
-from hyperellipsoid import hyperellipsoid as fit_ellipsoid
+from hyperellipsoid import Ellipsoid
 from shape import Shape
 from tree import KnowledgeNode, build_named_tree
 
@@ -101,11 +102,11 @@ def sensitivity(
     original_embeddings = dict(zip(concepts, embeddings[: len(concepts)]))
     spaceaug_embeddings = dict(zip(spaceaug_concepts, embeddings[len(concepts) :]))
 
-    fit_fns: dict[str, Callable[[np.ndarray], Shape]] = {
-        "hyperellipsoid": fit_ellipsoid,
-        "convexhull": fit_hull,
+    shape_classes: dict[str, type[Shape]] = {
+        "hyperellipsoid": Ellipsoid,
+        "convexhull": Hull,
     }
-    fit_fn = fit_fns[shape]
+    shape_cls = shape_classes[shape]
 
     train_spaceaug, test_spaceaug = _split_spaceaug(spaceaug_concepts, train_fraction)
     train_spaceaug_set = set(train_spaceaug)
@@ -124,7 +125,7 @@ def sensitivity(
         train_embeddings = _collect_training_embeddings(
             node, original_embeddings, spaceaug_embeddings, train_spaceaug_set
         )
-        region = fit_fn(train_embeddings)
+        region = shape_cls.fit(train_embeddings)
         contained = 0
         total = 0
         for orig_concept in node.concepts():

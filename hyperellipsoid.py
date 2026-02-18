@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import NamedTuple
 
 import numpy as np
@@ -29,6 +31,60 @@ class Ellipsoid(NamedTuple):
             z = self.X @ diff
             mahal -= float(z @ self.M_inv @ z) / self.alpha**2
         return mahal <= self.threshold
+
+    @classmethod
+    def fit(cls, vecs: np.ndarray) -> Ellipsoid:
+        """Compute the hyperellipsoid for a set of vectors.
+
+        Returns a factored Ellipsoid using the Woodbury identity so
+        that only n x n matrices are formed (instead of d x d), where
+        n is the number of samples.
+        """
+        mean = vecs.mean(axis=0)
+        # Embeddings are unit-normalized, so direction matters more
+        # than magnitude. Use the unit-norm mean as the ellipsoid
+        # center.
+        center = mean / np.linalg.norm(mean)
+        centered = vecs - center
+        n, d = centered.shape
+        # Under a Gaussian model, the 95th-percentile chi-squared
+        # value gives a region containing ~95% of the probability
+        # mass.
+        threshold = float(chi2.ppf(0.95, df=d))
+        # Ledoit-Wolf needs at least 3 samples for a meaningful
+        # shrinkage estimate.
+        if n < 3:
+            return _identity_ellipsoid(center, d, threshold)
+        # Gram matrix (n x n)
+        G = centered @ centered.T
+        # Shrinkage coefficient
+        mu = float(np.trace(G)) / (n * d)
+        # Zero average eigenvalue means all points coincide after
+        # centering.
+        if mu == 0:
+            return _identity_ellipsoid(center, d, threshold)
+        s = _ledoit_wolf_shrinkage_gram(centered, G)
+        # s=1 means pure identity (no data information); s=0 means
+        # no regularization (singular when d > n). Both fall back to
+        # identity.
+        if not (0.0 < s < 1.0):
+            return _identity_ellipsoid(center, d, threshold)
+        # Sigma = s*mu*I + (1-s)/n * X^T X. Naming alpha (identity
+        # weight) and gamma (data weight) keeps the Woodbury formula
+        # clean.
+        alpha = s * mu
+        gamma = (1.0 - s) / n
+        # Woodbury identity: invert this n x n matrix instead of the
+        # d x d Sigma, which is cheap when n << d.
+        M = (1.0 / gamma) * np.eye(n) + (1.0 / alpha) * G
+        M_inv = np.linalg.inv(M)
+        return Ellipsoid(
+            center=center,
+            alpha=alpha,
+            X=centered,
+            M_inv=M_inv,
+            threshold=threshold,
+        )
 
 
 def _ledoit_wolf_shrinkage_gram(X: np.ndarray, G: np.ndarray) -> float:
@@ -66,55 +122,5 @@ def _identity_ellipsoid(center: np.ndarray, d: int, threshold: float) -> Ellipso
         alpha=1.0,
         X=np.empty((0, d)),
         M_inv=np.empty((0, 0)),
-        threshold=threshold,
-    )
-
-
-def hyperellipsoid(vecs: list[list[float]]) -> Ellipsoid:
-    """Compute the hyperellipsoid for a set of vectors.
-
-    Returns a factored Ellipsoid using the Woodbury identity so that
-    only n x n matrices are formed (instead of d x d), where n is the
-    number of samples.
-    """
-    arr = np.array(vecs)
-    mean = arr.mean(axis=0)
-    # Embeddings are unit-normalized, so direction matters more than
-    # magnitude. Use the unit-norm mean as the ellipsoid center.
-    center = mean / np.linalg.norm(mean)
-    centered = arr - center
-    n, d = centered.shape
-    # Under a Gaussian model, the 95th-percentile chi-squared value
-    # gives a region containing ~95% of the probability mass.
-    threshold = float(chi2.ppf(0.95, df=d))
-    # Ledoit-Wolf needs at least 3 samples for a meaningful shrinkage
-    # estimate.
-    if n < 3:
-        return _identity_ellipsoid(center, d, threshold)
-    # Gram matrix (n x n)
-    G = centered @ centered.T
-    # Shrinkage coefficient
-    mu = float(np.trace(G)) / (n * d)
-    # Zero average eigenvalue means all points coincide after centering.
-    if mu == 0:
-        return _identity_ellipsoid(center, d, threshold)
-    s = _ledoit_wolf_shrinkage_gram(centered, G)
-    # s=1 means pure identity (no data information); s=0 means no
-    # regularization (singular when d > n). Both fall back to identity.
-    if not (0.0 < s < 1.0):
-        return _identity_ellipsoid(center, d, threshold)
-    # Sigma = s*mu*I + (1-s)/n * X^T X. Naming alpha (identity weight)
-    # and gamma (data weight) keeps the Woodbury formula clean.
-    alpha = s * mu
-    gamma = (1.0 - s) / n
-    # Woodbury identity: invert this n x n matrix instead of the
-    # d x d Sigma, which is cheap when n << d.
-    M = (1.0 / gamma) * np.eye(n) + (1.0 / alpha) * G
-    M_inv = np.linalg.inv(M)
-    return Ellipsoid(
-        center=center,
-        alpha=alpha,
-        X=centered,
-        M_inv=M_inv,
         threshold=threshold,
     )

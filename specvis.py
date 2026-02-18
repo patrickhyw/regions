@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from scipy.stats import chi2
 from sklearn.decomposition import PCA
 
-from hyperellipsoid import Ellipsoid, hyperellipsoid
+from hyperellipsoid import Ellipsoid
 
 
 def ellipsoid_surface(
@@ -112,8 +112,8 @@ if __name__ == "__main__":
         hover_name=all_concepts,
     )
 
-    bird_ell = hyperellipsoid(embeddings[:n_birds])
-    mammal_ell = hyperellipsoid(embeddings[n_birds:])
+    bird_ell = Ellipsoid.fit(X[:n_birds])
+    mammal_ell = Ellipsoid.fit(X[n_birds:])
     fig.add_trace(ellipsoid_surface(bird_ell, pca, color="orange"))
     fig.add_trace(ellipsoid_surface(mammal_ell, pca, color="blue"))
 

@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 import pytest
 from sklearn.decomposition import PCA
 
-from hyperellipsoid import Ellipsoid, hyperellipsoid
+from hyperellipsoid import Ellipsoid
 from specvis import ellipsoid_surface
 
 
@@ -19,8 +19,8 @@ class TestEllipsoidSurface:
     @pytest.fixture()
     def isotropic_ell(self) -> Ellipsoid:
         """Ellipsoid from isotropic 10-d data (many samples)."""
-        vecs = (np.random.standard_normal((60, 10)) * 0.1 + 1.0).tolist()
-        return hyperellipsoid(vecs)
+        data = np.random.standard_normal((60, 10)) * 0.1 + 1.0
+        return Ellipsoid.fit(data)
 
     def test_returns_surface_with_correct_color_and_opacity(
         self,
@@ -52,7 +52,7 @@ class TestEllipsoidSurface:
         """An identity-fallback ellipsoid (empty X) projects to a
         sphere with equal extents in all 3 axes."""
         # Two points trigger the identity fallback (n < 3).
-        ell = hyperellipsoid([[1.0] * 10, [1.1] * 10])
+        ell = Ellipsoid.fit(np.array([[1.0] * 10, [1.1] * 10]))
         assert ell.X.shape[0] == 0, "Expected identity fallback"
         surf = ellipsoid_surface(ell, pca_10d, color="red")
         ranges = [np.ptp(surf.x), np.ptp(surf.y), np.ptp(surf.z)]
@@ -71,7 +71,7 @@ class TestEllipsoidSurface:
         data += 1.0
         pca = PCA(n_components=3)
         pca.fit(data)
-        ell = hyperellipsoid(data.tolist())
+        ell = Ellipsoid.fit(data)
         surf = ellipsoid_surface(ell, pca, color="green")
         # PC1 should capture the high-variance direction, so the
         # surface extent along x (PC1) should exceed y and z.

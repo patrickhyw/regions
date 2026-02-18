@@ -91,6 +91,55 @@ class Hull(NamedTuple):
             return _halfplane_contains(self.equations, point)
         return float(np.linalg.norm(point - self.center)) <= self.radius
 
+    @classmethod
+    def fit(cls, vecs: np.ndarray) -> Hull:
+        """Fit a convex hull to a matrix of row vectors."""
+        n, d = vecs.shape
+        # When n <= d, points span a subspace of R^d. Project via
+        # SVD/PCA into that subspace so QHull has enough points
+        # relative to d.
+        if n <= d:
+            center = vecs.mean(axis=0)
+            centered = vecs - center
+            _, S, Vt = np.linalg.svd(centered, full_matrices=False)
+            # Standard numerical rank threshold, matching numpy's
+            # convention.
+            tol = S[0] * max(n, d) * np.finfo(vecs.dtype).eps
+            rank = int(np.sum(S > tol))
+            # All points are identical (or nearly so).
+            if rank == 0:
+                return Hull(
+                    equations=np.empty((0, 1)),
+                    center=center,
+                    radius=0.0,
+                    basis=np.empty((0, d)),
+                )
+            basis = Vt[:rank]
+            projected = centered @ basis.T
+            # QHull needs at least 2 dimensions. Rank 1 means
+            # collinear points, which fall back to a ball/segment.
+            if rank < 2:
+                return _subspace_hull(center, basis, projected)
+            try:
+                hull = ConvexHull(projected)
+            except QhullError:
+                return _subspace_hull(center, basis, projected)
+            # Projected points are centered, so the origin is
+            # interior.
+            equations = _recompute_equations(hull.simplices, projected, np.zeros(rank))
+            return _subspace_hull(center, basis, projected, equations)
+        # n > d: QHull can work directly in the ambient space.
+        try:
+            hull = ConvexHull(vecs)
+        except QhullError:
+            return _fallback_ball(vecs)
+        center = vecs.mean(axis=0)
+        radius = float(np.linalg.norm(vecs - center, axis=1).max())
+        # Recompute normals via SVD even in full rank; QHull's
+        # internal equations lose precision in high dimensions.
+        equations = _recompute_equations(hull.simplices, vecs, center)
+        return Hull(equations=equations, center=center, radius=radius)
+
 
 def _fallback_ball(vecs: np.ndarray) -> Hull:
     """Return a Hull with empty equations, using a ball fallback.
@@ -129,52 +178,6 @@ def _subspace_hull(
     )
 
 
-def fit_hull(vecs: np.ndarray) -> Hull:
-    """Fit a convex hull to a matrix of row vectors."""
-    n, d = vecs.shape
-    # When n <= d, points span a subspace of R^d. Project via SVD/PCA
-    # into that subspace so QHull has enough points relative to d.
-    if n <= d:
-        center = vecs.mean(axis=0)
-        centered = vecs - center
-        _, S, Vt = np.linalg.svd(centered, full_matrices=False)
-        # Standard numerical rank threshold, matching numpy's convention.
-        tol = S[0] * max(n, d) * np.finfo(vecs.dtype).eps
-        rank = int(np.sum(S > tol))
-        # All points are identical (or nearly so).
-        if rank == 0:
-            return Hull(
-                equations=np.empty((0, 1)),
-                center=center,
-                radius=0.0,
-                basis=np.empty((0, d)),
-            )
-        basis = Vt[:rank]
-        projected = centered @ basis.T
-        # QHull needs at least 2 dimensions. Rank 1 means collinear
-        # points, which fall back to a ball/segment.
-        if rank < 2:
-            return _subspace_hull(center, basis, projected)
-        try:
-            hull = ConvexHull(projected)
-        except QhullError:
-            return _subspace_hull(center, basis, projected)
-        # Projected points are centered, so the origin is interior.
-        equations = _recompute_equations(hull.simplices, projected, np.zeros(rank))
-        return _subspace_hull(center, basis, projected, equations)
-    # n > d: QHull can work directly in the ambient space.
-    try:
-        hull = ConvexHull(vecs)
-    except QhullError:
-        return _fallback_ball(vecs)
-    center = vecs.mean(axis=0)
-    radius = float(np.linalg.norm(vecs - center, axis=1).max())
-    # Recompute normals via SVD even in full rank; QHull's internal
-    # equations lose precision in high dimensions.
-    equations = _recompute_equations(hull.simplices, vecs, center)
-    return Hull(equations=equations, center=center, radius=radius)
-
-
 def convex_hull(
     node: KnowledgeNode,
     representations: dict[str, list[float]],
@@ -193,4 +196,4 @@ def convex_hull(
             indices = np.random.choice(len(concepts), size=sample_size, replace=False)
             concepts = [concepts[i] for i in indices]
     vecs = np.array([representations[c] for c in concepts])
-    return fit_hull(vecs)
+    return Hull.fit(vecs)

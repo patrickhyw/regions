@@ -1,23 +1,20 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable
 from itertools import combinations
 from typing import Literal, NamedTuple
 
+import numpy as np
 from tqdm import tqdm
 
-from convexhull import convex_hull
+from convexhull import Hull
 from embedding import get_embeddings
-from hyperellipsoid import hyperellipsoid
+from hyperellipsoid import Ellipsoid
 from shape import Shape
 from tree import KnowledgeNode, build_named_tree
 
 MAX_SIBLING_RATIO = 3.0
 MIN_SUBTREE_SIZE = 10
-
-
-FitFn = Callable[[KnowledgeNode, dict[str, list[float]]], Shape]
 
 
 class PairResult(NamedTuple):
@@ -31,7 +28,7 @@ class PairResult(NamedTuple):
 def fit_all(
     node: KnowledgeNode,
     representations: dict[str, list[float]],
-    fit: FitFn,
+    shape_cls: type[Shape],
     progress: bool = False,
 ) -> dict[str, Shape]:
     """Compute shapes for every node in the tree.
@@ -47,14 +44,15 @@ def fit_all(
         stack.extend(n.children)
     result: dict[str, Shape] = {}
     for n in tqdm(nodes, desc="Fitting shapes", disable=not progress):
-        result[n.concept] = fit(n, representations)
+        vecs = np.array([representations[c] for c in n.concepts()])
+        result[n.concept] = shape_cls.fit(vecs)
     return result
 
 
 def evaluate_sibling_pairs(
     node: KnowledgeNode,
     representations: dict[str, list[float]],
-    fit: FitFn,
+    shape_cls: type[Shape],
     progress: bool = False,
     _shapes: dict[str, Shape] | None = None,
 ) -> list[PairResult]:
@@ -64,7 +62,7 @@ def evaluate_sibling_pairs(
     in their own subtree's shape.
     """
     if _shapes is None:
-        _shapes = fit_all(node, representations, fit=fit, progress=progress)
+        _shapes = fit_all(node, representations, shape_cls, progress=progress)
     results: list[PairResult] = []
     for a, b in combinations(node.children, 2):
         size_a, size_b = len(a.concepts()), len(b.concepts())
@@ -107,25 +105,11 @@ def evaluate_sibling_pairs(
             evaluate_sibling_pairs(
                 child,
                 representations,
-                fit=fit,
+                shape_cls,
                 _shapes=_shapes,
             )
         )
     return results
-
-
-def _hyperellipsoid_fit(
-    node: KnowledgeNode,
-    representations: dict[str, list[float]],
-) -> Shape:
-    """Adapt hyperellipsoid to the FitFn signature."""
-    return hyperellipsoid([representations[c] for c in node.concepts()])
-
-
-_FIT_FNS: dict[str, FitFn] = {
-    "hyperellipsoid": _hyperellipsoid_fit,
-    "convexhull": convex_hull,
-}
 
 
 def specificity(
@@ -135,11 +119,17 @@ def specificity(
     progress: bool = False,
 ) -> list[PairResult]:
     """Run specificity analysis for a named tree and embedding dimension."""
+    shape_classes: dict[str, type[Shape]] = {
+        "hyperellipsoid": Ellipsoid,
+        "convexhull": Hull,
+    }
     tree = build_named_tree(tree_name)
     concepts = tree.root.concepts()
     embeddings = get_embeddings(concepts, dimension=dimension)
     representations = dict(zip(concepts, embeddings))
-    return evaluate_sibling_pairs(tree.root, representations, _FIT_FNS[shape], progress)
+    return evaluate_sibling_pairs(
+        tree.root, representations, shape_classes[shape], progress
+    )
 
 
 def print_results(results: list[PairResult]) -> None:
