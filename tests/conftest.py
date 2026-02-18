@@ -1,10 +1,11 @@
-import numpy as np
 import pytest
 
+from util import set_seed
 
-@pytest.fixture()
-def rng() -> np.random.Generator:
-    return np.random.default_rng(seed=42)
+
+@pytest.fixture(autouse=True)
+def _seed() -> None:
+    set_seed()
 
 
 @pytest.fixture()

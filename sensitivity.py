@@ -31,8 +31,7 @@ def _split_spaceaug(
     train_fraction: float,
 ) -> tuple[list[str], list[str]]:
     """Split spaceaug concepts into train/test by the given fraction."""
-    rng = np.random.default_rng(seed=0)
-    indices = rng.permutation(len(concepts))
+    indices = np.random.permutation(len(concepts))
     mid = int(len(concepts) * train_fraction)
     train = [concepts[i] for i in indices[:mid]]
     test = [concepts[i] for i in indices[mid:]]
@@ -173,6 +172,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    from util import set_seed
+
+    set_seed()
     print_node_results(
         sensitivity(
             shape=args.shape,

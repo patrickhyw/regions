@@ -38,8 +38,7 @@ class TestSensitivity:
     @pytest.fixture()
     def mock_get_embeddings(self) -> Generator[MagicMock, None, None]:
         def _fake(texts: list[str], *, dimension: int) -> list[list[float]]:
-            rng = np.random.default_rng(seed=42)
-            return [rng.standard_normal(dimension).tolist() for _ in texts]
+            return [np.random.standard_normal(dimension).tolist() for _ in texts]
 
         with patch("sensitivity.get_embeddings", side_effect=_fake) as mock:
             yield mock

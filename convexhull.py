@@ -186,12 +186,11 @@ def convex_hull(
     ceil(k * num_concepts) concepts.
     """
     concepts = node.concepts()
-    # Subsampling reduces QHull cost. Fixed seed ensures determinism.
+    # Subsampling reduces QHull cost.
     if k is not None:
         sample_size = math.ceil(k * len(concepts))
         if sample_size < len(concepts):
-            rng = np.random.default_rng(seed=0)
-            indices = rng.choice(len(concepts), size=sample_size, replace=False)
+            indices = np.random.choice(len(concepts), size=sample_size, replace=False)
             concepts = [concepts[i] for i in indices]
     vecs = np.array([representations[c] for c in concepts])
     return fit_hull(vecs)

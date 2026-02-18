@@ -9,17 +9,17 @@ from specvis import ellipsoid_surface
 
 class TestEllipsoidSurface:
     @pytest.fixture()
-    def pca_10d(self, rng: np.random.Generator) -> PCA:
+    def pca_10d(self) -> PCA:
         """Fit a PCA(3) on 20 random 10-dimensional vectors."""
-        X = rng.standard_normal((20, 10))
+        X = np.random.standard_normal((20, 10))
         pca = PCA(n_components=3)
         pca.fit(X)
         return pca
 
     @pytest.fixture()
-    def isotropic_ell(self, rng: np.random.Generator) -> Ellipsoid:
+    def isotropic_ell(self) -> Ellipsoid:
         """Ellipsoid from isotropic 10-d data (many samples)."""
-        vecs = (rng.standard_normal((60, 10)) * 0.1 + 1.0).tolist()
+        vecs = (np.random.standard_normal((60, 10)) * 0.1 + 1.0).tolist()
         return hyperellipsoid(vecs)
 
     def test_returns_surface_with_correct_color_and_opacity(
@@ -63,12 +63,11 @@ class TestEllipsoidSurface:
     ) -> None:
         """Data with one dominant direction produces an ellipsoid
         elongated along that direction after PCA projection."""
-        rng = np.random.default_rng(seed=99)
         d = 10
         n = 60
         # Variance concentrated in the first dimension.
-        data = rng.standard_normal((n, d)) * 0.1
-        data[:, 0] += rng.standard_normal(n) * 5.0
+        data = np.random.standard_normal((n, d)) * 0.1
+        data[:, 0] += np.random.standard_normal(n) * 5.0
         data += 1.0
         pca = PCA(n_components=3)
         pca.fit(data)

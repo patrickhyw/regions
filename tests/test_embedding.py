@@ -16,15 +16,14 @@ from embedding import (
 )
 
 
-def _make_embedding(seed: int, dimension: int) -> MagicMock:
+def _make_embedding(dimension: int) -> MagicMock:
     """Create a mock embedding object with deterministic random values.
 
     Generates a full 3072-dim unit vector then truncates to the requested
     dimension, mimicking the API's truncation behavior. The result is
     intentionally not unit-norm so normalization tests are meaningful.
     """
-    rng = np.random.default_rng(seed)
-    full = rng.standard_normal(3072)
+    full = np.random.standard_normal(3072)
     full /= np.linalg.norm(full)
     emb = MagicMock()
     emb.values = full[:dimension].tolist()
@@ -40,7 +39,7 @@ def _fake_embed(
     """Side effect for mock embed_content that returns sized fake embeddings."""
     response = MagicMock()
     response.embeddings = [
-        _make_embedding(i, config.output_dimensionality) for i in range(len(contents))
+        _make_embedding(config.output_dimensionality) for _ in range(len(contents))
     ]
     return response
 

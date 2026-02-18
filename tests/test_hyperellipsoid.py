@@ -19,19 +19,19 @@ class TestHyperellipsoid:
         [(5, 3), (10, 4), (20, 8), (50, 10)],
         ids=["5x3", "10x4", "20x8", "50x10"],
     )
-    def test_matches_sklearn(self, rng: np.random.Generator, n: int, d: int) -> None:
+    def test_matches_sklearn(self, n: int, d: int) -> None:
         """Shrinkage coefficient matches sklearn's LedoitWolf."""
-        X = rng.standard_normal((n, d))
+        X = np.random.standard_normal((n, d))
         X -= X.mean(axis=0)
         G = X @ X.T
         shrinkage = _ledoit_wolf_shrinkage_gram(X, G)
         lw = LedoitWolf(assume_centered=True).fit(X)
         assert shrinkage == pytest.approx(lw.shrinkage_, abs=1e-10)
 
-    def test_identical_rows_returns_one(self, rng: np.random.Generator) -> None:
+    def test_identical_rows_returns_one(self) -> None:
         """When all rows are identical (zero variance after centering),
         returns 1.0."""
-        row = rng.standard_normal(5)
+        row = np.random.standard_normal(5)
         X = np.tile(row, (4, 1))
         X -= X.mean(axis=0)
         G = X @ X.T
@@ -41,10 +41,10 @@ class TestHyperellipsoid:
 
     def test_matches_direct(self) -> None:
         """Woodbury Mahalanobis matches diff @ precision @ diff."""
-        # Seed 123 produces well-conditioned data (shrinkage in (0, 1)).
-        rng = np.random.default_rng(seed=123)
+        # Global seed 0 produces well-conditioned data (shrinkage
+        # in (0, 1)).
         n, d = 8, 4
-        random_vecs = rng.standard_normal((n, d)).tolist()
+        random_vecs = np.random.standard_normal((n, d)).tolist()
         ellipsoid = hyperellipsoid(random_vecs)
         # Reconstruct LW precision the old way.
         arr = np.array(random_vecs)
@@ -54,7 +54,7 @@ class TestHyperellipsoid:
         lw = LedoitWolf(assume_centered=True).fit(centered)
         # Test several query points.
         for _ in range(10):
-            query = rng.standard_normal(d)
+            query = np.random.standard_normal(d)
             diff = query - ellipsoid.center
             direct = float(diff @ lw.precision_ @ diff)
             z = ellipsoid.X @ diff
@@ -135,13 +135,13 @@ class TestHyperellipsoid:
         ellipsoid = _identity_ellipsoid(np.array(center), 2, threshold=1.0)
         assert ellipsoid.contains(point) == expected
 
-    def test_directional_scaling(self, rng: np.random.Generator) -> None:
+    def test_directional_scaling(self) -> None:
         """An ellipsoid from anisotropic data is tighter in the
         low-variance direction."""
         n = 50
         # Variance ratio ~100:1 (y vs x). Small offset so mean is
         # nonzero but doesn't dominate the variance.
-        arr = rng.standard_normal((n, 2)) * [1.0, 10.0]
+        arr = np.random.standard_normal((n, 2)) * [1.0, 10.0]
         arr += [0.5, 0.5]
         aniso_vecs = arr.tolist()
         ellipsoid = hyperellipsoid(aniso_vecs)

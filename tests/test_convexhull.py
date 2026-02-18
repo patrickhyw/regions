@@ -11,6 +11,7 @@ from analytics.convex_hull import (
 from scipy.spatial import ConvexHull
 
 from tree import KnowledgeNode
+from util import set_seed
 
 
 @pytest.fixture()
@@ -66,8 +67,7 @@ def recomputed_equations() -> tuple[np.ndarray, np.ndarray]:
     Returns (equations, points) where equations are recomputed from a
     ConvexHull built on points.
     """
-    rng = np.random.default_rng(seed=42)
-    points = rng.standard_normal((20, 10))
+    points = np.random.standard_normal((20, 10))
     hull = ConvexHull(points)
     interior = points.mean(axis=0)
     equations = _recompute_equations(hull.simplices, points, interior)
@@ -128,8 +128,7 @@ class TestConvexHull:
 
     def test_all_points_contained(self) -> None:
         """All input points satisfy contains."""
-        rng = np.random.default_rng(seed=42)
-        vecs = rng.standard_normal((10, 3))
+        vecs = np.random.standard_normal((10, 3))
         hull = _fallback_ball(vecs)
         for v in vecs:
             assert hull.contains(v.tolist())
@@ -210,8 +209,10 @@ class TestConvexHull:
         sampling_tree: KnowledgeNode,
         sampling_reps: dict[str, list[float]],
     ) -> None:
-        """Two calls produce identical results (seed is hardcoded)."""
+        """Two calls produce identical results (seed is reset)."""
+        set_seed()
         r1 = convex_hull(sampling_tree, sampling_reps, k=0.4)
+        set_seed()
         r2 = convex_hull(sampling_tree, sampling_reps, k=0.4)
         np.testing.assert_allclose(r1.equations, r2.equations)
         np.testing.assert_allclose(r1.center, r2.center)
@@ -220,7 +221,6 @@ class TestConvexHull:
     def test_hull_shape_reflects_distribution(self) -> None:
         """An elongated point set contains a point along the long axis
         but excludes a same-distance point along the short axis."""
-        rng = np.random.default_rng(seed=0)
         n = 50
         concepts = [f"c{i}" for i in range(n)]
         root = KnowledgeNode(
@@ -228,7 +228,7 @@ class TestConvexHull:
             children=[KnowledgeNode(concept=c) for c in concepts[1:]],
         )
         # Elongated in y-direction (scale 10) vs x-direction (scale 1).
-        vecs = rng.standard_normal((n, 2)) * [1.0, 10.0]
+        vecs = np.random.standard_normal((n, 2)) * [1.0, 10.0]
         vecs += [0.5, 0.5]
         reps = {c: v.tolist() for c, v in zip(concepts, vecs)}
         hull = convex_hull(root, reps)
@@ -382,11 +382,10 @@ class TestConvexHull:
     def test_separable_clusters_no_overlap(self) -> None:
         """Two well-separated clusters in high-D have no overlap
         when using recomputed equations."""
-        rng = np.random.default_rng(seed=42)
         d = 50
         n = d + 10
-        cluster_a = rng.standard_normal((n, d)) + 100.0
-        cluster_b = rng.standard_normal((n, d)) - 100.0
+        cluster_a = np.random.standard_normal((n, d)) + 100.0
+        cluster_b = np.random.standard_normal((n, d)) - 100.0
         hull_a = fit_hull(cluster_a)
         hull_b = fit_hull(cluster_b)
         for p in cluster_b:

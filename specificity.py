@@ -190,6 +190,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    from util import set_seed
+
+    set_seed()
     print_results(
         specificity(
             shape=args.shape,
