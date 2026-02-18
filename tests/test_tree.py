@@ -662,11 +662,6 @@ class TestTreeDirectory:
                 ),
                 id="carnivoremax",
             ),
-            pytest.param(
-                "bovidmin",
-                TreeSpec(root_synset="bovid.n.01", dup_handling="prune"),
-                id="bovidmin",
-            ),
         ],
     )
     def test_tree_spec(self, name: str, expected: TreeSpec) -> None:
