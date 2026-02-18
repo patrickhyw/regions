@@ -8,8 +8,9 @@ from analytics.convex_hull import (
     convex_hull,
     fit_hull,
 )
-from pydmodels.knowledge import KnowledgeNode
 from scipy.spatial import ConvexHull
+
+from tree import KnowledgeNode
 
 
 @pytest.fixture()

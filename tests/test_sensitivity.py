@@ -3,32 +3,16 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-from pydmodels.knowledge import KnowledgeNode, KnowledgeTree
 
 from sensitivity import NodeResult, _spaceaug_concepts, sensitivity
+from tree import KnowledgeNode, KnowledgeTree
 
 
 class TestSpaceaugConcepts:
     def test_single_concept(self) -> None:
         """Generates three whitespace variants for one concept."""
-        result = _spaceaug_concepts(["dog"])
+        result = _spaceaug_concepts("dog")
         assert result == [" dog", "dog ", " dog "]
-
-    def test_multiple_concepts(self) -> None:
-        """Generates variants for each concept in order."""
-        result = _spaceaug_concepts(["dog", "cat"])
-        assert result == [
-            " dog",
-            "dog ",
-            " dog ",
-            " cat",
-            "cat ",
-            " cat ",
-        ]
-
-    def test_empty_list(self) -> None:
-        """Empty input produces empty output."""
-        assert _spaceaug_concepts([]) == []
 
 
 class TestSensitivity:
