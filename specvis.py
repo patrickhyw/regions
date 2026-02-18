@@ -6,18 +6,18 @@ import plotly.graph_objects as go
 from scipy.stats import chi2
 from sklearn.decomposition import PCA
 
-from hyperellipsoid import Ellipsoid
+from hyperellipsoid import Hyperellipsoid
 
 
 def ellipsoid_surface(
-    ell: Ellipsoid,
+    ell: Hyperellipsoid,
     pca: PCA,
     *,
     color: str,
     opacity: float = 0.3,
     resolution: int = 30,
 ) -> go.Surface:
-    """Project a high-dimensional Ellipsoid into 3D PCA space and
+    """Project a high-dimensional Hyperellipsoid into 3D PCA space and
     return a plotly Surface trace.
 
     The projected covariance is V @ Sigma @ V^T where V is the PCA
@@ -32,7 +32,7 @@ def ellipsoid_surface(
         n = ell.X.shape[0]
         # Project X into PCA space and build the 3x3 covariance
         # Sigma_3d = alpha*I_3 + gamma * X_3d^T @ X_3d. The
-        # Ellipsoid stores M_inv but not gamma, so recover gamma
+        # Hyperellipsoid stores M_inv but not gamma, so recover gamma
         # from M = inv(M_inv) via the trace of
         # M = (1/gamma)*I_n + (1/alpha)*G.
         X_3d = ell.X @ V.T  # (n, 3)
@@ -112,8 +112,8 @@ if __name__ == "__main__":
         hover_name=all_concepts,
     )
 
-    bird_ell = Ellipsoid.fit(X[:n_birds])
-    mammal_ell = Ellipsoid.fit(X[n_birds:])
+    bird_ell = Hyperellipsoid.fit(X[:n_birds])
+    mammal_ell = Hyperellipsoid.fit(X[n_birds:])
     fig.add_trace(ellipsoid_surface(bird_ell, pca, color="orange"))
     fig.add_trace(ellipsoid_surface(mammal_ell, pca, color="blue"))
 

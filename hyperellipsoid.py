@@ -10,7 +10,7 @@ from scipy.stats import chi2
 # with n x n Gram matrices and use Ledoit-Wolf shrinkage to regularize.
 
 
-class Ellipsoid(NamedTuple):
+class Hyperellipsoid(NamedTuple):
     center: np.ndarray  # (d,) unit-norm mean
     alpha: float  # shrinkage * mu, the identity coefficient
     X: np.ndarray  # (n, d) centered data, or (0, d) for fallback
@@ -33,10 +33,10 @@ class Ellipsoid(NamedTuple):
         return mahal <= self.threshold
 
     @classmethod
-    def fit(cls, vecs: np.ndarray) -> Ellipsoid:
+    def fit(cls, vecs: np.ndarray) -> Hyperellipsoid:
         """Compute the hyperellipsoid for a set of vectors.
 
-        Returns a factored Ellipsoid using the Woodbury identity so
+        Returns a factored Hyperellipsoid using the Woodbury identity so
         that only n x n matrices are formed (instead of d x d), where
         n is the number of samples.
         """
@@ -78,7 +78,7 @@ class Ellipsoid(NamedTuple):
         # d x d Sigma, which is cheap when n << d.
         M = (1.0 / gamma) * np.eye(n) + (1.0 / alpha) * G
         M_inv = np.linalg.inv(M)
-        return Ellipsoid(
+        return Hyperellipsoid(
             center=center,
             alpha=alpha,
             X=centered,
@@ -111,13 +111,13 @@ def _ledoit_wolf_shrinkage_gram(X: np.ndarray, G: np.ndarray) -> float:
     return 0.0 if beta == 0 else beta / delta
 
 
-def _identity_ellipsoid(center: np.ndarray, d: int, threshold: float) -> Ellipsoid:
-    """Return an identity-precision Ellipsoid (fallback case).
+def _identity_ellipsoid(center: np.ndarray, d: int, threshold: float) -> Hyperellipsoid:
+    """Return an identity-precision Hyperellipsoid (fallback case).
 
     Identity precision reduces Mahalanobis to scaled Euclidean distance.
     Empty X and M_inv skip the Woodbury correction term.
     """
-    return Ellipsoid(
+    return Hyperellipsoid(
         center=center,
         alpha=1.0,
         X=np.empty((0, d)),

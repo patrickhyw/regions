@@ -7,9 +7,9 @@ from typing import Literal, NamedTuple
 import numpy as np
 from tqdm import tqdm
 
-from convexhull import Hull
+from convexhull import ConvexHull
 from embedding import get_embeddings
-from hyperellipsoid import Ellipsoid
+from hyperellipsoid import Hyperellipsoid
 from shape import Shape
 from tree import KnowledgeNode, build_named_tree
 
@@ -120,8 +120,8 @@ def specificity(
 ) -> list[PairResult]:
     """Run specificity analysis for a named tree and embedding dimension."""
     shape_classes: dict[str, type[Shape]] = {
-        "hyperellipsoid": Ellipsoid,
-        "convexhull": Hull,
+        "hyperellipsoid": Hyperellipsoid,
+        "convexhull": ConvexHull,
     }
     tree = build_named_tree(tree_name)
     concepts = tree.root.concepts()

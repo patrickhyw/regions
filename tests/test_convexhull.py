@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull as ScipyConvexHull
 
 from convexhull import (
-    Hull,
+    ConvexHull,
     _fallback_ball,
     _halfplane_contains,
     _recompute_equations,
@@ -14,7 +14,7 @@ from util import set_seed
 
 
 @pytest.fixture()
-def triangle_hull() -> Hull:
+def triangle_hull() -> ConvexHull:
     """Convex hull of a 2D triangle with vertices (0,0), (4,0), (0,4)."""
     return convex_hull(
         KnowledgeNode(
@@ -33,7 +33,7 @@ def triangle_hull() -> Hull:
 
 
 @pytest.fixture()
-def unit_segment_hull() -> Hull:
+def unit_segment_hull() -> ConvexHull:
     """Fallback ball from segment [(0,0), (2,0)]: center (1,0), radius 1."""
     return _fallback_ball(np.array([[0.0, 0.0], [2.0, 0.0]]))
 
@@ -64,10 +64,10 @@ def recomputed_equations() -> tuple[np.ndarray, np.ndarray]:
     """Recomputed halfplane equations for a random 10D point cloud.
 
     Returns (equations, points) where equations are recomputed from a
-    ConvexHull built on points.
+    ScipyConvexHull built on points.
     """
     points = np.random.standard_normal((20, 10))
-    hull = ConvexHull(points)
+    hull = ScipyConvexHull(points)
     interior = points.mean(axis=0)
     equations = _recompute_equations(hull.simplices, points, interior)
     return equations, points
@@ -119,7 +119,7 @@ def sampling_reps() -> dict[str, list[float]]:
 
 
 class TestConvexHull:
-    # Hull.contains tests
+    # ConvexHull.contains tests
 
     @pytest.mark.parametrize(
         ("point", "expected"),
@@ -130,7 +130,7 @@ class TestConvexHull:
         ],
     )
     def test_triangle_hull_contains(
-        self, triangle_hull: Hull, point: list[float], expected: bool
+        self, triangle_hull: ConvexHull, point: list[float], expected: bool
     ) -> None:
         """Triangle hull correctly classifies interior, boundary,
         and exterior points."""
@@ -149,7 +149,7 @@ class TestConvexHull:
         ],
     )
     def test_fallback_ball_contains(
-        self, unit_segment_hull: Hull, point: list[float], expected: bool
+        self, unit_segment_hull: ConvexHull, point: list[float], expected: bool
     ) -> None:
         """Fallback ball correctly classifies boundary and exterior
         points. Center is (1,0), radius is 1."""
@@ -188,9 +188,9 @@ class TestConvexHull:
         tree: KnowledgeNode,
         representations: dict[str, list[float]],
     ) -> None:
-        """Returns a Hull instance."""
+        """Returns a ConvexHull instance."""
         result = convex_hull(tree, representations)
-        assert isinstance(result, Hull)
+        assert isinstance(result, ConvexHull)
 
     def test_single_point_uses_fallback(self) -> None:
         """A single point produces fallback (empty equations)."""
@@ -287,7 +287,7 @@ class TestConvexHull:
         self, high_dim_triangle_vecs: np.ndarray
     ) -> None:
         """When n <= d, PCA projection sets basis."""
-        hull = Hull.fit(high_dim_triangle_vecs)
+        hull = ConvexHull.fit(high_dim_triangle_vecs)
         assert hull.basis is not None
         assert hull.basis.shape == (2, 10)
 
@@ -304,7 +304,7 @@ class TestConvexHull:
         self, high_dim_triangle_vecs: np.ndarray
     ) -> None:
         """All vertices of a triangle in 10D are contained."""
-        hull = Hull.fit(high_dim_triangle_vecs)
+        hull = ConvexHull.fit(high_dim_triangle_vecs)
         for v in high_dim_triangle_vecs:
             assert hull.contains(v.tolist())
 
@@ -312,7 +312,7 @@ class TestConvexHull:
         self, high_dim_triangle_vecs: np.ndarray
     ) -> None:
         """A convex combination on the plane is inside."""
-        hull = Hull.fit(high_dim_triangle_vecs)
+        hull = ConvexHull.fit(high_dim_triangle_vecs)
         interior = high_dim_triangle_vecs.mean(axis=0)
         assert hull.contains(interior.tolist())
 
@@ -320,7 +320,7 @@ class TestConvexHull:
         self, high_dim_triangle_vecs: np.ndarray
     ) -> None:
         """A point displaced off the affine plane is rejected."""
-        hull = Hull.fit(high_dim_triangle_vecs)
+        hull = ConvexHull.fit(high_dim_triangle_vecs)
         interior = high_dim_triangle_vecs.mean(axis=0)
         off_plane = interior.copy()
         off_plane[2] = 1.0
@@ -328,14 +328,14 @@ class TestConvexHull:
 
     def test_collinear_points_contained(self, collinear_vecs: np.ndarray) -> None:
         """Collinear points are all contained, plus midpoint."""
-        hull = Hull.fit(collinear_vecs)
+        hull = ConvexHull.fit(collinear_vecs)
         for v in collinear_vecs:
             assert hull.contains(v.tolist())
         assert hull.contains([1.0, 0.0, 0.0])
 
     def test_collinear_outside_not_contained(self, collinear_vecs: np.ndarray) -> None:
         """A point beyond the collinear segment is rejected."""
-        hull = Hull.fit(collinear_vecs)
+        hull = ConvexHull.fit(collinear_vecs)
         assert not hull.contains([3.0, 0.0, 0.0])
 
     def test_two_points_in_high_dim_contained(self) -> None:
@@ -344,7 +344,7 @@ class TestConvexHull:
         vecs = np.zeros((2, 10))
         vecs[0, 0] = 1.0
         vecs[1, 0] = 3.0
-        hull = Hull.fit(vecs)
+        hull = ConvexHull.fit(vecs)
         assert hull.contains(vecs[0].tolist())
         assert hull.contains(vecs[1].tolist())
         mid = (vecs[0] + vecs[1]) / 2.0
@@ -354,24 +354,24 @@ class TestConvexHull:
         """Only the exact point is contained for a single-point
         hull."""
         vecs = np.array([[1.0, 2.0, 3.0, 4.0, 5.0]])
-        hull = Hull.fit(vecs)
+        hull = ConvexHull.fit(vecs)
         assert hull.contains(vecs[0].tolist())
         other = vecs[0].copy()
         other[0] += 0.1
         assert not hull.contains(other.tolist())
 
-    # Hull.fit tests
+    # ConvexHull.fit tests
 
     def test_matches_convex_hull(
         self,
         tree: KnowledgeNode,
         representations: dict[str, list[float]],
     ) -> None:
-        """Hull.fit(vecs) produces the same result as
+        """ConvexHull.fit(vecs) produces the same result as
         convex_hull(node, reps) for equivalent data."""
         concepts = tree.concepts()
         vecs = np.array([representations[c] for c in concepts])
-        from_fit = Hull.fit(vecs)
+        from_fit = ConvexHull.fit(vecs)
         from_hull = convex_hull(tree, representations)
         np.testing.assert_allclose(from_fit.equations, from_hull.equations)
         np.testing.assert_allclose(from_fit.center, from_hull.center)
@@ -399,7 +399,7 @@ class TestConvexHull:
     def test_fallback(self, vecs: np.ndarray) -> None:
         """Degenerate inputs produce fallback behavior with empty
         equations."""
-        result = Hull.fit(vecs)
+        result = ConvexHull.fit(vecs)
         assert result.equations.shape[0] == 0
 
     # _recompute_equations tests
@@ -429,8 +429,8 @@ class TestConvexHull:
         n = d + 10
         cluster_a = np.random.standard_normal((n, d)) + 100.0
         cluster_b = np.random.standard_normal((n, d)) - 100.0
-        hull_a = Hull.fit(cluster_a)
-        hull_b = Hull.fit(cluster_b)
+        hull_a = ConvexHull.fit(cluster_a)
+        hull_b = ConvexHull.fit(cluster_b)
         for p in cluster_b:
             assert not hull_a.contains(p.tolist()), (
                 "Point from cluster B found inside hull A"

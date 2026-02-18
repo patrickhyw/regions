@@ -5,9 +5,9 @@ from typing import Literal, NamedTuple
 
 import numpy as np
 
-from convexhull import Hull
+from convexhull import ConvexHull
 from embedding import get_embeddings
-from hyperellipsoid import Ellipsoid
+from hyperellipsoid import Hyperellipsoid
 from shape import Shape
 from tree import build_named_tree
 
@@ -70,8 +70,8 @@ def sensitivity(
     spaceaug_embeddings = dict(zip(spaceaug_concepts, embeddings[len(concepts) :]))
 
     shape_classes: dict[str, type[Shape]] = {
-        "hyperellipsoid": Ellipsoid,
-        "convexhull": Hull,
+        "hyperellipsoid": Hyperellipsoid,
+        "convexhull": ConvexHull,
     }
     shape_cls = shape_classes[shape]
 

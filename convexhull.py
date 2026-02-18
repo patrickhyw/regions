@@ -4,7 +4,8 @@ import math
 from typing import NamedTuple
 
 import numpy as np
-from scipy.spatial import ConvexHull, QhullError
+from scipy.spatial import ConvexHull as ScipyConvexHull
+from scipy.spatial import QhullError
 
 from tree import KnowledgeNode
 
@@ -31,7 +32,7 @@ def _recompute_equations(
     facet's normal and offset independently.
 
     Returns an (nfacet, d+1) array in the same format as
-    ConvexHull.equations: each row is [normal..., offset] such that
+    scipy's ConvexHull.equations: each row is [normal..., offset] such that
     normal @ x + offset <= 0 for points inside the hull.
     """
     d = points.shape[1]
@@ -64,7 +65,7 @@ def _halfplane_contains(equations: np.ndarray, point: np.ndarray) -> bool:
     return bool(np.all(equations[:, :-1] @ point + equations[:, -1] <= _HALFPLANE_TOL))
 
 
-class Hull(NamedTuple):
+class ConvexHull(NamedTuple):
     equations: np.ndarray  # (nfacet, k+1) in projected space, or (0, ?) fallback
     center: np.ndarray  # (d,) mean of points in ambient space
     radius: float  # max distance from center (for fallback ball)
@@ -92,7 +93,7 @@ class Hull(NamedTuple):
         return float(np.linalg.norm(point - self.center)) <= self.radius
 
     @classmethod
-    def fit(cls, vecs: np.ndarray) -> Hull:
+    def fit(cls, vecs: np.ndarray) -> ConvexHull:
         """Fit a convex hull to a matrix of row vectors."""
         n, d = vecs.shape
         # When n <= d, points span a subspace of R^d. Project via
@@ -108,7 +109,7 @@ class Hull(NamedTuple):
             rank = int(np.sum(S > tol))
             # All points are identical (or nearly so).
             if rank == 0:
-                return Hull(
+                return ConvexHull(
                     equations=np.empty((0, 1)),
                     center=center,
                     radius=0.0,
@@ -121,7 +122,7 @@ class Hull(NamedTuple):
             if rank < 2:
                 return _subspace_hull(center, basis, projected)
             try:
-                hull = ConvexHull(projected)
+                hull = ScipyConvexHull(projected)
             except QhullError:
                 return _subspace_hull(center, basis, projected)
             # Projected points are centered, so the origin is
@@ -130,7 +131,7 @@ class Hull(NamedTuple):
             return _subspace_hull(center, basis, projected, equations)
         # n > d: QHull can work directly in the ambient space.
         try:
-            hull = ConvexHull(vecs)
+            hull = ScipyConvexHull(vecs)
         except QhullError:
             return _fallback_ball(vecs)
         center = vecs.mean(axis=0)
@@ -138,11 +139,11 @@ class Hull(NamedTuple):
         # Recompute normals via SVD even in full rank; QHull's
         # internal equations lose precision in high dimensions.
         equations = _recompute_equations(hull.simplices, vecs, center)
-        return Hull(equations=equations, center=center, radius=radius)
+        return ConvexHull(equations=equations, center=center, radius=radius)
 
 
-def _fallback_ball(vecs: np.ndarray) -> Hull:
-    """Return a Hull with empty equations, using a ball fallback.
+def _fallback_ball(vecs: np.ndarray) -> ConvexHull:
+    """Return a ConvexHull with empty equations, using a ball fallback.
 
     Conservative approximation when QHull fails: the bounding ball
     centered at the mean always contains the original points.
@@ -150,7 +151,7 @@ def _fallback_ball(vecs: np.ndarray) -> Hull:
     center = vecs.mean(axis=0)
     d = vecs.shape[1]
     radius = float(np.linalg.norm(vecs - center, axis=1).max())
-    return Hull(
+    return ConvexHull(
         equations=np.empty((0, d + 1)),
         center=center,
         radius=radius,
@@ -162,15 +163,15 @@ def _subspace_hull(
     basis: np.ndarray,
     projected: np.ndarray,
     equations: np.ndarray | None = None,
-) -> Hull:
-    """Build a Hull in a PCA subspace.
+) -> ConvexHull:
+    """Build a ConvexHull in a PCA subspace.
 
     If equations are provided, uses them; otherwise falls back to a
     ball in the projected space.
     """
     rank = projected.shape[1]
     radius = float(np.linalg.norm(projected, axis=1).max())
-    return Hull(
+    return ConvexHull(
         equations=equations if equations is not None else np.empty((0, rank + 1)),
         center=center,
         radius=radius,
@@ -182,7 +183,7 @@ def convex_hull(
     node: KnowledgeNode,
     representations: dict[str, list[float]],
     k: float | None = None,
-) -> Hull:
+) -> ConvexHull:
     """Compute the convex hull for a subtree.
 
     If k is given (a fraction between 0 and 1), randomly sample
@@ -196,4 +197,4 @@ def convex_hull(
             indices = np.random.choice(len(concepts), size=sample_size, replace=False)
             concepts = [concepts[i] for i in indices]
     vecs = np.array([representations[c] for c in concepts])
-    return Hull.fit(vecs)
+    return ConvexHull.fit(vecs)

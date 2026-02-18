@@ -3,11 +3,11 @@ import plotly.graph_objects as go
 import pytest
 from sklearn.decomposition import PCA
 
-from hyperellipsoid import Ellipsoid
+from hyperellipsoid import Hyperellipsoid
 from specvis import ellipsoid_surface
 
 
-class TestEllipsoidSurface:
+class TestHyperellipsoidSurface:
     @pytest.fixture()
     def pca_10d(self) -> PCA:
         """Fit a PCA(3) on 20 random 10-dimensional vectors."""
@@ -17,14 +17,14 @@ class TestEllipsoidSurface:
         return pca
 
     @pytest.fixture()
-    def isotropic_ell(self) -> Ellipsoid:
-        """Ellipsoid from isotropic 10-d data (many samples)."""
+    def isotropic_ell(self) -> Hyperellipsoid:
+        """Hyperellipsoid from isotropic 10-d data (many samples)."""
         data = np.random.standard_normal((60, 10)) * 0.1 + 1.0
-        return Ellipsoid.fit(data)
+        return Hyperellipsoid.fit(data)
 
     def test_returns_surface_with_correct_color_and_opacity(
         self,
-        isotropic_ell: Ellipsoid,
+        isotropic_ell: Hyperellipsoid,
         pca_10d: PCA,
     ) -> None:
         """Returns a go.Surface with the requested color and opacity."""
@@ -35,7 +35,7 @@ class TestEllipsoidSurface:
 
     def test_surface_centered_on_projected_center(
         self,
-        isotropic_ell: Ellipsoid,
+        isotropic_ell: Hyperellipsoid,
         pca_10d: PCA,
     ) -> None:
         """Surface median coordinates match the PCA-projected center."""
@@ -52,7 +52,7 @@ class TestEllipsoidSurface:
         """An identity-fallback ellipsoid (empty X) projects to a
         sphere with equal extents in all 3 axes."""
         # Two points trigger the identity fallback (n < 3).
-        ell = Ellipsoid.fit(np.array([[1.0] * 10, [1.1] * 10]))
+        ell = Hyperellipsoid.fit(np.array([[1.0] * 10, [1.1] * 10]))
         assert ell.X.shape[0] == 0, "Expected identity fallback"
         surf = ellipsoid_surface(ell, pca_10d, color="red")
         ranges = [np.ptp(surf.x), np.ptp(surf.y), np.ptp(surf.z)]
@@ -71,7 +71,7 @@ class TestEllipsoidSurface:
         data += 1.0
         pca = PCA(n_components=3)
         pca.fit(data)
-        ell = Ellipsoid.fit(data)
+        ell = Hyperellipsoid.fit(data)
         surf = ellipsoid_surface(ell, pca, color="green")
         # PC1 should capture the high-variance direction, so the
         # surface extent along x (PC1) should exceed y and z.
