@@ -118,7 +118,6 @@ def sampling_reps() -> dict[str, list[float]]:
     return {c: v.tolist() for c, v in zip(concepts, vecs)}
 
 
-@pytest.mark.skip  # DEBUG
 class TestConvexHull:
     # Hull.contains tests
 

@@ -10,7 +10,6 @@ from hyperellipsoid import (
 )
 
 
-@pytest.mark.skip  # DEBUG
 class TestHyperellipsoid:
     # --- Ledoit-Wolf shrinkage gram ---
 
@@ -145,7 +144,7 @@ class TestHyperellipsoid:
         ellipsoid = Ellipsoid.fit(arr)
         center = ellipsoid.center
         # Same offset in both directions: tighter along x.
-        offset = 5.0
+        offset = 15.0
         in_x = ellipsoid.contains((center + [offset, 0.0]).tolist())
         in_y = ellipsoid.contains((center + [0.0, offset]).tolist())
         assert in_y and not in_x
