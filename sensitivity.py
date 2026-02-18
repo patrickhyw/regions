@@ -27,18 +27,6 @@ def _spaceaug_concept(concept: str) -> list[str]:
     return [f" {concept}", f"{concept} ", f" {concept} "]
 
 
-def _split_spaceaug(
-    concepts: list[str],
-    train_fraction: float,
-) -> tuple[list[str], list[str]]:
-    """Split spaceaug concepts into train/test by the given fraction."""
-    indices = np.random.permutation(len(concepts))
-    mid = int(len(concepts) * train_fraction)
-    train = [concepts[i] for i in indices[:mid]]
-    test = [concepts[i] for i in indices[mid:]]
-    return train, test
-
-
 def _collect_training_embeddings(
     node: KnowledgeNode,
     original_embeddings: dict[str, list[float]],
@@ -108,7 +96,10 @@ def sensitivity(
     }
     shape_cls = shape_classes[shape]
 
-    train_spaceaug, test_spaceaug = _split_spaceaug(spaceaug_concepts, train_fraction)
+    _indices = np.random.permutation(len(spaceaug_concepts))
+    _mid = int(len(spaceaug_concepts) * train_fraction)
+    train_spaceaug = [spaceaug_concepts[i] for i in _indices[:_mid]]
+    test_spaceaug = [spaceaug_concepts[i] for i in _indices[_mid:]]
     train_spaceaug_set = set(train_spaceaug)
 
     # Build mapping: original concept -> list of test spaceaug concepts.
