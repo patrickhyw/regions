@@ -4,14 +4,14 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from sensitivity import NodeResult, _spaceaug_concepts, sensitivity
+from sensitivity import NodeResult, _spaceaug_concept, sensitivity
 from tree import KnowledgeNode, KnowledgeTree
 
 
 class TestSpaceaugConcepts:
     def test_single_concept(self) -> None:
         """Generates three whitespace variants for one concept."""
-        result = _spaceaug_concepts("dog")
+        result = _spaceaug_concept("dog")
         assert result == [" dog", "dog ", " dog "]
 
 
