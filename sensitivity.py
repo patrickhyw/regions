@@ -38,10 +38,10 @@ def _split_spaceaug(
     return train, test
 
 
-def _collect_training_vectors(
+def _collect_training_embeddings(
     node: KnowledgeNode,
-    original_reps: dict[str, list[float]],
-    spaceaug_reps: dict[str, list[float]],
+    original_embeddings: dict[str, list[float]],
+    spaceaug_embeddings: dict[str, list[float]],
     train_spaceaug: set[str],
 ) -> np.ndarray:
     """Collect training vectors for a node.
@@ -51,12 +51,12 @@ def _collect_training_vectors(
     """
     concepts = node.concepts()
     subtree_concepts = set(concepts)
-    vecs: list[list[float]] = [original_reps[c] for c in concepts]
-    for sa_concept in train_spaceaug:
-        orig = sa_concept.strip()
+    embeddings: list[list[float]] = [original_embeddings[c] for c in concepts]
+    for spaceaug_concept in train_spaceaug:
+        orig = spaceaug_concept.strip()
         if orig in subtree_concepts:
-            vecs.append(spaceaug_reps[sa_concept])
-    return np.array(vecs)
+            embeddings.append(spaceaug_embeddings[spaceaug_concept])
+    return np.array(embeddings)
 
 
 def print_node_results(results: list[NodeResult]) -> None:
@@ -95,11 +95,11 @@ def sensitivity(
     """
     tree = build_named_tree(tree_name)
     concepts = tree.root.concepts()
-    sa_concepts = [v for c in concepts for v in _spaceaug_concept(c)]
+    spaceaug_concepts = [v for c in concepts for v in _spaceaug_concept(c)]
 
-    embeddings = get_embeddings(concepts + sa_concepts, dimension=dimension)
-    original_reps = dict(zip(concepts, embeddings[: len(concepts)]))
-    spaceaug_reps = dict(zip(sa_concepts, embeddings[len(concepts) :]))
+    embeddings = get_embeddings(concepts + spaceaug_concepts, dimension=dimension)
+    original_embeddings = dict(zip(concepts, embeddings[: len(concepts)]))
+    spaceaug_embeddings = dict(zip(spaceaug_concepts, embeddings[len(concepts) :]))
 
     fit_fns: dict[str, Callable[[np.ndarray], Shape]] = {
         "hyperellipsoid": fit_ellipsoid,
@@ -107,29 +107,29 @@ def sensitivity(
     }
     fit_fn = fit_fns[shape]
 
-    train_sa, test_sa = _split_spaceaug(sa_concepts, train_fraction)
-    train_sa_set = set(train_sa)
+    train_spaceaug, test_spaceaug = _split_spaceaug(spaceaug_concepts, train_fraction)
+    train_spaceaug_set = set(train_spaceaug)
 
     # Build mapping: original concept -> list of test spaceaug concepts.
-    test_sa_by_orig: dict[str, list[str]] = {}
-    for sa_concept in test_sa:
-        orig = sa_concept.strip()
-        test_sa_by_orig.setdefault(orig, []).append(sa_concept)
+    test_spaceaug_by_orig: dict[str, list[str]] = {}
+    for spaceaug_concept in test_spaceaug:
+        orig = spaceaug_concept.strip()
+        test_spaceaug_by_orig.setdefault(orig, []).append(spaceaug_concept)
 
     # Fit shapes and evaluate per-node containment in a single DFS pass.
     results: list[NodeResult] = []
     stack = [tree.root]
     while stack:
         node = stack.pop()
-        vecs = _collect_training_vectors(
-            node, original_reps, spaceaug_reps, train_sa_set
+        train_embeddings = _collect_training_embeddings(
+            node, original_embeddings, spaceaug_embeddings, train_spaceaug_set
         )
-        region = fit_fn(vecs)
+        region = fit_fn(train_embeddings)
         contained = 0
         total = 0
         for orig_concept in node.concepts():
-            for sa_concept in test_sa_by_orig.get(orig_concept, []):
-                if region.contains(spaceaug_reps[sa_concept]):
+            for spaceaug_concept in test_spaceaug_by_orig.get(orig_concept, []):
+                if region.contains(spaceaug_embeddings[spaceaug_concept]):
                     contained += 1
                 total += 1
         results.append(
