@@ -1,6 +1,6 @@
 # Feature Regions
 
-<img src="sensvis.png" alt="sensitivity_visualization" width="75%">
+<img src="specvis.png" alt="sensitivity_visualization" width="75%">
 
 
 Exploring how features can be represented as regions instead of directions.

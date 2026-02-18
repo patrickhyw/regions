@@ -4,7 +4,7 @@ import pytest
 from sklearn.decomposition import PCA
 
 from hyperellipsoid import Ellipsoid, hyperellipsoid
-from sensvis import ellipsoid_surface
+from specvis import ellipsoid_surface
 
 
 class TestEllipsoidSurface:
