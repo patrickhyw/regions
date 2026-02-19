@@ -4,6 +4,8 @@ import argparse
 from typing import Callable, Literal, NamedTuple
 
 import numpy as np
+import plotly.graph_objects as go
+from rich.progress import Progress
 
 from convexhull import ConvexHull
 from embedding import get_embeddings
@@ -101,7 +103,7 @@ def print_node_results(results: list[NodeResult], top: int = 10) -> None:
 
 def sensitivity(
     shape: Literal["hyperellipsoid", "convexhull"],
-    tree_name: str = "primate",
+    tree_name: str = "monkey",
     dimension: int = 128,
     train_fraction: float = 0.0,
     use_spaceaug: bool = True,
@@ -133,15 +135,18 @@ def sensitivity(
         train_vecs = [
             all_embeddings[c] for c in split.train_set if c.strip() in subtree_concepts
         ]
-        train_embeddings = np.array(train_vecs)
-        region = shape_cls.fit(train_embeddings)
-        contained = 0
-        total = 0
-        for orig_concept in node.concepts():
-            for test_concept in split.test_by_orig.get(orig_concept, []):
-                if region.contains(all_embeddings[test_concept]):
-                    contained += 1
-                total += 1
+        total = sum(len(split.test_by_orig.get(c, [])) for c in node.concepts())
+        if train_vecs:
+            train_embeddings = np.array(train_vecs)
+            region = shape_cls.fit(train_embeddings)
+            contained = sum(
+                1
+                for orig_concept in node.concepts()
+                for test_concept in split.test_by_orig.get(orig_concept, [])
+                if region.contains(all_embeddings[test_concept])
+            )
+        else:
+            contained = 0
         results.append(
             NodeResult(
                 concept=node.concept,
@@ -153,49 +158,106 @@ def sensitivity(
     return results
 
 
+def graph(tree_name: str, dimension: int) -> go.Figure:
+    """Plot test accuracy vs train fraction for all shape/spaceaug combos."""
+    series = [
+        ("hyperellipsoid", True),
+        ("hyperellipsoid", False),
+        ("convexhull", True),
+        ("convexhull", False),
+    ]
+    spaceaug_fractions = [round(x * 0.1, 1) for x in range(10)]
+    no_spaceaug_fractions = [round(x * 0.1, 1) for x in range(1, 10)]
+
+    fig = go.Figure()
+    with Progress() as progress:
+        for shape, use_spaceaug in series:
+            fractions = spaceaug_fractions if use_spaceaug else no_spaceaug_fractions
+            label = "spaceaug" if use_spaceaug else "no-spaceaug"
+            task = progress.add_task(f"{shape} {label}", total=len(fractions))
+            accuracies: list[float] = []
+            for frac in fractions:
+                results = sensitivity(
+                    shape=shape,
+                    tree_name=tree_name,
+                    dimension=dimension,
+                    train_fraction=frac,
+                    use_spaceaug=use_spaceaug,
+                )
+                total = sum(r.total for r in results)
+                contained = sum(r.contained for r in results)
+                accuracies.append(contained / total if total > 0 else 0.0)
+                progress.advance(task)
+            color = {"hyperellipsoid": "blue", "convexhull": "green"}[shape]
+            dash = "solid" if use_spaceaug else "dash"
+            fig.add_trace(
+                go.Scatter(
+                    x=fractions,
+                    y=accuracies,
+                    mode="lines",
+                    name=f"{shape} {label}",
+                    line=dict(color=color, dash=dash),
+                )
+            )
+    fig.update_layout(
+        xaxis_title="Train Fraction",
+        yaxis_title="Overall Accuracy",
+        yaxis_range=[0, 1],
+    )
+    return fig
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Sensitivity analysis: fit shapes on training data"
-        " and evaluate on held-out spaceaug data."
-    )
-    parser.add_argument(
-        "--tree-name",
-        default="primate",
-        help="Name of the tree. Default: primate.",
-    )
-    parser.add_argument(
-        "--dimension",
-        type=int,
-        default=128,
-        help="Dimension of embeddings. Default: 128.",
-    )
-    parser.add_argument(
+    parser = argparse.ArgumentParser(description="Sensitivity analysis.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    run_parser = subparsers.add_parser("run")
+    graph_parser = subparsers.add_parser("graph")
+
+    for sub in [run_parser, graph_parser]:
+        sub.add_argument(
+            "--tree-name",
+            default="monkey",
+            help="Name of the tree. Default: monkey.",
+        )
+        sub.add_argument(
+            "--dimension",
+            type=int,
+            default=128,
+            help="Dimension of embeddings. Default: 128.",
+        )
+
+    run_parser.add_argument(
         "--shape",
         default="hyperellipsoid",
         choices=["hyperellipsoid", "convexhull"],
         help="Shape type. Default: hyperellipsoid.",
     )
-    parser.add_argument(
+    run_parser.add_argument(
         "--train-fraction",
         type=float,
         default=0.0,
-        help="Fraction of concepts used for training (0.0 to 1.0). Default: 0.0.",
+        help=("Fraction of concepts used for training (0.0 to 1.0). Default: 0.0."),
     )
-    parser.add_argument(
+    run_parser.add_argument(
         "--spaceaug",
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Use spaceaug augmentation. Default: --spaceaug.",
     )
-    args = parser.parse_args()
 
+    args = parser.parse_args()
     set_seed()
-    print_node_results(
-        sensitivity(
-            shape=args.shape,
-            tree_name=args.tree_name,
-            dimension=args.dimension,
-            train_fraction=args.train_fraction,
-            use_spaceaug=args.spaceaug,
+
+    if args.command == "run":
+        print_node_results(
+            sensitivity(
+                shape=args.shape,
+                tree_name=args.tree_name,
+                dimension=args.dimension,
+                train_fraction=args.train_fraction,
+                use_spaceaug=args.spaceaug,
+            )
         )
-    )
+    elif args.command == "graph":
+        graph(args.tree_name, args.dimension).show()

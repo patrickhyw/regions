@@ -2,6 +2,7 @@ from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import plotly.graph_objects as go
 import pytest
 
 from sensitivity import (
@@ -9,6 +10,7 @@ from sensitivity import (
     TrainTestSplit,
     _spaceaug_concept,
     create_train_test_split,
+    graph,
     print_node_results,
     sensitivity,
 )
@@ -106,9 +108,9 @@ class TestSensitivity:
         mock_build_named_tree: MagicMock,
         mock_get_embeddings: MagicMock,
     ) -> None:
-        """tree_name defaults to 'primate' and dimension defaults to 128."""
+        """tree_name defaults to 'monkey' and dimension defaults to 128."""
         sensitivity(shape="hyperellipsoid")
-        mock_build_named_tree.assert_called_once_with("primate")
+        mock_build_named_tree.assert_called_once_with("monkey")
         mock_get_embeddings.assert_called_once()
         _, kwargs = mock_get_embeddings.call_args
         assert kwargs["dimension"] == 128
@@ -153,6 +155,129 @@ class TestPrintNodeResults:
         print_node_results(results, top=1)
         output = capsys.readouterr().out
         assert "overall contained=9/18" in output
+
+
+class TestGraph:
+    @pytest.fixture()
+    def tree(self) -> KnowledgeTree:
+        return KnowledgeTree(
+            root=KnowledgeNode(
+                concept="animal",
+                children=[
+                    KnowledgeNode(concept="dog"),
+                    KnowledgeNode(concept="cat"),
+                ],
+            )
+        )
+
+    @pytest.fixture()
+    def mock_build_named_tree(
+        self, tree: KnowledgeTree
+    ) -> Generator[MagicMock, None, None]:
+        with patch("sensitivity.build_named_tree", return_value=tree) as mock:
+            yield mock
+
+    @pytest.fixture()
+    def mock_get_embeddings(self) -> Generator[MagicMock, None, None]:
+        def _fake(texts: list[str], *, dimension: int) -> list[list[float]]:
+            return [np.random.standard_normal(dimension).tolist() for _ in texts]
+
+        with patch("sensitivity.get_embeddings", side_effect=_fake) as mock:
+            yield mock
+
+    def test_returns_figure(
+        self,
+        mock_build_named_tree: MagicMock,
+        mock_get_embeddings: MagicMock,
+    ) -> None:
+        """graph() returns a plotly Figure."""
+        fig = graph(tree_name="test", dimension=3)
+        assert isinstance(fig, go.Figure)
+
+    def test_has_four_traces(
+        self,
+        mock_build_named_tree: MagicMock,
+        mock_get_embeddings: MagicMock,
+    ) -> None:
+        """Figure has 4 traces (one per shape/spaceaug combo)."""
+        fig = graph(tree_name="test", dimension=3)
+        assert len(fig.data) == 4
+
+    def test_spaceaug_traces_have_ten_x_values(
+        self,
+        mock_build_named_tree: MagicMock,
+        mock_get_embeddings: MagicMock,
+    ) -> None:
+        """Spaceaug traces have 10 x-values (0.0-0.9)."""
+        fig = graph(tree_name="test", dimension=3)
+        spaceaug_traces = [
+            t for t in fig.data if "spaceaug" in t.name and "no-spaceaug" not in t.name
+        ]
+        for trace in spaceaug_traces:
+            assert len(trace.x) == 10
+
+    def test_no_spaceaug_traces_have_nine_x_values(
+        self,
+        mock_build_named_tree: MagicMock,
+        mock_get_embeddings: MagicMock,
+    ) -> None:
+        """No-spaceaug traces have 9 x-values (0.1-0.9)."""
+        fig = graph(tree_name="test", dimension=3)
+        no_spaceaug_traces = [t for t in fig.data if "no-spaceaug" in t.name]
+        for trace in no_spaceaug_traces:
+            assert len(trace.x) == 9
+
+    def test_y_values_between_zero_and_one(
+        self,
+        mock_build_named_tree: MagicMock,
+        mock_get_embeddings: MagicMock,
+    ) -> None:
+        """All y-values are between 0 and 1."""
+        fig = graph(tree_name="test", dimension=3)
+        for trace in fig.data:
+            for y in trace.y:
+                assert 0.0 <= y <= 1.0
+
+    def test_uses_progress_bar(
+        self,
+        mock_build_named_tree: MagicMock,
+        mock_get_embeddings: MagicMock,
+    ) -> None:
+        """graph() creates one progress task per series line."""
+        with patch("sensitivity.Progress") as mock_progress_cls:
+            mock_progress = MagicMock()
+            mock_progress_cls.return_value.__enter__ = MagicMock(
+                return_value=mock_progress
+            )
+            mock_progress_cls.return_value.__exit__ = MagicMock(return_value=False)
+            mock_task = MagicMock()
+            mock_progress.add_task.return_value = mock_task
+            graph(tree_name="test", dimension=3)
+            assert mock_progress.add_task.call_args_list == [
+                (("hyperellipsoid spaceaug",), {"total": 10}),
+                (("hyperellipsoid no-spaceaug",), {"total": 9}),
+                (("convexhull spaceaug",), {"total": 10}),
+                (("convexhull no-spaceaug",), {"total": 9}),
+            ]
+            assert mock_progress.advance.call_count == 38
+
+    def test_trace_styling(
+        self,
+        mock_build_named_tree: MagicMock,
+        mock_get_embeddings: MagicMock,
+    ) -> None:
+        """Traces are styled by shape (color) and spaceaug mode (dash)."""
+        fig = graph(tree_name="test", dimension=3)
+        traces = {t.name: t for t in fig.data}
+        expected = {
+            "hyperellipsoid spaceaug": ("blue", "solid"),
+            "hyperellipsoid no-spaceaug": ("blue", "dash"),
+            "convexhull spaceaug": ("green", "solid"),
+            "convexhull no-spaceaug": ("green", "dash"),
+        }
+        for name, (color, dash) in expected.items():
+            assert traces[name].line.color == color
+            assert traces[name].line.dash == dash
 
 
 class TestCreateTrainTestSplit:
