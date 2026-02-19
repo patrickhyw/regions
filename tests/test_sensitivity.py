@@ -8,14 +8,12 @@ from sensitivity import NodeResult, _spaceaug_concept, sensitivity
 from tree import KnowledgeNode, KnowledgeTree
 
 
-class TestSpaceaugConcepts:
+class TestSensitivity:
     def test_single_concept(self) -> None:
         """Generates three whitespace variants for one concept."""
         result = _spaceaug_concept("dog")
         assert result == [" dog", "dog ", " dog "]
 
-
-class TestSensitivity:
     @pytest.fixture()
     def tree(self) -> KnowledgeTree:
         return KnowledgeTree(
