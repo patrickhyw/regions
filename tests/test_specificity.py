@@ -7,7 +7,6 @@ from specificity import (
     MAX_SIBLING_RATIO,
     MIN_SUBTREE_SIZE,
     PairResult,
-    _evaluate_sibling_pairs,
     print_results,
     specificity,
 )
@@ -109,27 +108,33 @@ class TestSpecificity:
 
         child_a has 6 concepts (passes), child_b has only 4 (fails
         MIN_SUBTREE_SIZE=5). The pair is balanced enough for
-        MAX_SIBLING_RATIO (6/4 = 1.5 <= 3.0) and the combined size
-        of 10 would have passed the old check.
+        MAX_SIBLING_RATIO (6/4 = 1.5 <= 3.0).
         """
-        tree = KnowledgeNode(
-            concept="root",
-            children=[
-                KnowledgeNode(
-                    concept="child_a",
-                    children=[KnowledgeNode(concept=f"a{i}") for i in range(5)],
-                ),
-                KnowledgeNode(
-                    concept="child_b",
-                    children=[KnowledgeNode(concept=f"b{i}") for i in range(3)],
-                ),
-            ],
+        small_tree = KnowledgeTree(
+            root=KnowledgeNode(
+                concept="root",
+                children=[
+                    KnowledgeNode(
+                        concept="child_a",
+                        children=[KnowledgeNode(concept=f"a{i}") for i in range(5)],
+                    ),
+                    KnowledgeNode(
+                        concept="child_b",
+                        children=[KnowledgeNode(concept=f"b{i}") for i in range(3)],
+                    ),
+                ],
+            )
         )
-        # Shapes are unused because the pair should be skipped before
-        # any containment checks.
-        shapes: dict[str, MagicMock] = {}
-        reps: dict[str, list[float]] = {}
-        results = _evaluate_sibling_pairs(tree, reps, shapes)
+        concepts = small_tree.root.concepts()
+        dummy_embeddings = [[0.0] * 3 for _ in concepts]
+        with (
+            patch("specificity.build_named_tree", return_value=small_tree),
+            patch(
+                "specificity.get_embeddings",
+                return_value=dummy_embeddings,
+            ),
+        ):
+            results = specificity("hyperellipsoid", "test_tree", 3)
         assert results == []
 
 

@@ -15,6 +15,10 @@ from util import set_seed
 
 MAX_SIBLING_RATIO = 3.0
 MIN_SUBTREE_SIZE = 5
+SHAPE_CLASSES: dict[str, type[Shape]] = {
+    "hyperellipsoid": Hyperellipsoid,
+    "convexhull": ConvexHull,
+}
 
 
 class PairResult(NamedTuple):
@@ -48,58 +52,6 @@ def _fit_all(
     return result
 
 
-def _evaluate_sibling_pairs(
-    node: KnowledgeNode,
-    representations: dict[str, list[float]],
-    shapes: dict[str, Shape],
-) -> list[PairResult]:
-    """Recursively evaluate sibling pair separation using pre-fitted shapes.
-
-    For each pair of siblings, measure what fraction of points fall exclusively
-    in their own subtree's shape.
-    """
-    results: list[PairResult] = []
-    for a, b in combinations(node.children, 2):
-        size_a, size_b = len(a.concepts()), len(b.concepts())
-        if max(size_a, size_b) / min(size_a, size_b) > MAX_SIBLING_RATIO:
-            continue
-        if min(size_a, size_b) < MIN_SUBTREE_SIZE:
-            continue
-        correct = 0
-        in_neither = 0
-        in_both = 0
-        total = 0
-        # For each subtree, check whether its concepts fall exclusively
-        # in its own shape and not in the sibling's shape. The fourth
-        # case (in other but not own) is implicitly wrong.
-        for own, other in [(a, b), (b, a)]:
-            own_shape = shapes[own.concept]
-            other_shape = shapes[other.concept]
-            for concept in own.concepts():
-                vec = representations[concept]
-                in_own = own_shape.contains(vec)
-                in_other = other_shape.contains(vec)
-                if in_own and not in_other:
-                    correct += 1
-                elif not in_own and not in_other:
-                    in_neither += 1
-                elif in_own and in_other:
-                    in_both += 1
-                total += 1
-        results.append(
-            PairResult(
-                concepts=(a.concept, b.concept),
-                correct=correct,
-                in_neither=in_neither,
-                in_both=in_both,
-                total=total,
-            )
-        )
-    for child in node.children:
-        results.extend(_evaluate_sibling_pairs(child, representations, shapes))
-    return results
-
-
 def specificity(
     shape: Literal["hyperellipsoid", "convexhull"],
     tree_name: str,
@@ -107,16 +59,56 @@ def specificity(
     progress: bool = False,
 ) -> list[PairResult]:
     """Run specificity analysis for a named tree and embedding dimension."""
-    shape_classes: dict[str, type[Shape]] = {
-        "hyperellipsoid": Hyperellipsoid,
-        "convexhull": ConvexHull,
-    }
     tree = build_named_tree(tree_name)
     concepts = tree.root.concepts()
     embeddings = get_embeddings(concepts, dimension=dimension)
     representations = dict(zip(concepts, embeddings))
-    shapes = _fit_all(tree.root, representations, shape_classes[shape], progress)
-    return _evaluate_sibling_pairs(tree.root, representations, shapes)
+    shapes = _fit_all(tree.root, representations, SHAPE_CLASSES[shape], progress)
+
+    # Walk all nodes via iterative DFS, evaluating sibling pairs.
+    results: list[PairResult] = []
+    stack = [tree.root]
+    while stack:
+        node = stack.pop()
+        stack.extend(node.children)
+        for a, b in combinations(node.children, 2):
+            size_a, size_b = len(a.concepts()), len(b.concepts())
+            if max(size_a, size_b) / min(size_a, size_b) > MAX_SIBLING_RATIO:
+                continue
+            if min(size_a, size_b) < MIN_SUBTREE_SIZE:
+                continue
+            correct = 0
+            in_neither = 0
+            in_both = 0
+            total = 0
+            # For each subtree, check whether its concepts fall
+            # exclusively in its own shape and not in the sibling's
+            # shape. The fourth case (in other but not own) is
+            # implicitly wrong.
+            for own, other in [(a, b), (b, a)]:
+                own_shape = shapes[own.concept]
+                other_shape = shapes[other.concept]
+                for concept in own.concepts():
+                    vec = representations[concept]
+                    in_own = own_shape.contains(vec)
+                    in_other = other_shape.contains(vec)
+                    if in_own and not in_other:
+                        correct += 1
+                    elif not in_own and not in_other:
+                        in_neither += 1
+                    elif in_own and in_other:
+                        in_both += 1
+                    total += 1
+            results.append(
+                PairResult(
+                    concepts=(a.concept, b.concept),
+                    correct=correct,
+                    in_neither=in_neither,
+                    in_both=in_both,
+                    total=total,
+                )
+            )
+    return results
 
 
 def print_results(results: list[PairResult], top: int = 10) -> None:
@@ -162,7 +154,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--shape",
         default="hyperellipsoid",
-        choices=["hyperellipsoid", "convexhull"],
+        choices=SHAPE_CLASSES,
         help="Shape type. Default: hyperellipsoid.",
     )
     args = parser.parse_args()
