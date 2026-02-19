@@ -7,7 +7,7 @@ from specificity import (
     MAX_SIBLING_RATIO,
     MIN_SUBTREE_SIZE,
     PairResult,
-    evaluate_sibling_pairs,
+    _evaluate_sibling_pairs,
     print_results,
     specificity,
 )
@@ -127,9 +127,9 @@ class TestSpecificity:
         )
         # Shapes are unused because the pair should be skipped before
         # any containment checks.
-        mock_shapes: dict[str, MagicMock] = {}
+        shapes: dict[str, MagicMock] = {}
         reps: dict[str, list[float]] = {}
-        results = evaluate_sibling_pairs(tree, reps, MagicMock, _shapes=mock_shapes)
+        results = _evaluate_sibling_pairs(tree, reps, shapes)
         assert results == []
 
 

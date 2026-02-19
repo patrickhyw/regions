@@ -4,7 +4,6 @@ import argparse
 from itertools import combinations
 from typing import Literal, NamedTuple
 
-import numpy as np
 from tqdm import tqdm
 
 from convexhull import ConvexHull
@@ -26,7 +25,7 @@ class PairResult(NamedTuple):
     total: int
 
 
-def fit_all(
+def _fit_all(
     node: KnowledgeNode,
     representations: dict[str, list[float]],
     shape_cls: type[Shape],
@@ -45,25 +44,20 @@ def fit_all(
         stack.extend(n.children)
     result: dict[str, Shape] = {}
     for n in tqdm(nodes, desc="Fitting shapes", disable=not progress):
-        vecs = np.array([representations[c] for c in n.concepts()])
-        result[n.concept] = shape_cls.fit(vecs)
+        result[n.concept] = shape_cls.fit([representations[c] for c in n.concepts()])
     return result
 
 
-def evaluate_sibling_pairs(
+def _evaluate_sibling_pairs(
     node: KnowledgeNode,
     representations: dict[str, list[float]],
-    shape_cls: type[Shape],
-    progress: bool = False,
-    _shapes: dict[str, Shape] | None = None,
+    shapes: dict[str, Shape],
 ) -> list[PairResult]:
-    """Evaluate sibling pair separation using shapes.
+    """Recursively evaluate sibling pair separation using pre-fitted shapes.
 
     For each pair of siblings, measure what fraction of points fall exclusively
     in their own subtree's shape.
     """
-    if _shapes is None:
-        _shapes = fit_all(node, representations, shape_cls, progress=progress)
     results: list[PairResult] = []
     for a, b in combinations(node.children, 2):
         size_a, size_b = len(a.concepts()), len(b.concepts())
@@ -79,8 +73,8 @@ def evaluate_sibling_pairs(
         # in its own shape and not in the sibling's shape. The fourth
         # case (in other but not own) is implicitly wrong.
         for own, other in [(a, b), (b, a)]:
-            own_shape = _shapes[own.concept]
-            other_shape = _shapes[other.concept]
+            own_shape = shapes[own.concept]
+            other_shape = shapes[other.concept]
             for concept in own.concepts():
                 vec = representations[concept]
                 in_own = own_shape.contains(vec)
@@ -102,14 +96,7 @@ def evaluate_sibling_pairs(
             )
         )
     for child in node.children:
-        results.extend(
-            evaluate_sibling_pairs(
-                child,
-                representations,
-                shape_cls,
-                _shapes=_shapes,
-            )
-        )
+        results.extend(_evaluate_sibling_pairs(child, representations, shapes))
     return results
 
 
@@ -128,9 +115,8 @@ def specificity(
     concepts = tree.root.concepts()
     embeddings = get_embeddings(concepts, dimension=dimension)
     representations = dict(zip(concepts, embeddings))
-    return evaluate_sibling_pairs(
-        tree.root, representations, shape_classes[shape], progress
-    )
+    shapes = _fit_all(tree.root, representations, shape_classes[shape], progress)
+    return _evaluate_sibling_pairs(tree.root, representations, shapes)
 
 
 def print_results(results: list[PairResult], top: int = 10) -> None:
