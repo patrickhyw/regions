@@ -91,7 +91,7 @@ class TestSensitivity:
             dimension=3,
             train_fraction=0.0,
         )
-        total = sum(r.total for r in results)
+        total = sum(r.test_total for r in results)
         assert total > 0
 
     def test_train_fraction_one_raises(
@@ -117,9 +117,12 @@ class TestSensitivity:
         results = sensitivity(shape="convexhull", tree_name="test", dimension=3)
         for r in results:
             assert isinstance(r, NodeResult)
-            assert r.contained >= 0
-            assert r.total >= 0
-            assert r.contained <= r.total
+            assert r.test_contained >= 0
+            assert r.test_total >= 0
+            assert r.test_contained <= r.test_total
+            assert r.train_contained >= 0
+            assert r.train_total >= 0
+            assert r.train_contained <= r.train_total
 
     def test_defaults(
         self,
@@ -138,9 +141,27 @@ class TestPrintNodeResults:
     @pytest.fixture()
     def results(self) -> list[NodeResult]:
         return [
-            NodeResult(concept="alpha", contained=5, total=10),
-            NodeResult(concept="beta", contained=3, total=6),
-            NodeResult(concept="gamma", contained=1, total=2),
+            NodeResult(
+                concept="alpha",
+                test_contained=5,
+                test_total=10,
+                train_contained=8,
+                train_total=10,
+            ),
+            NodeResult(
+                concept="beta",
+                test_contained=3,
+                test_total=6,
+                train_contained=5,
+                train_total=6,
+            ),
+            NodeResult(
+                concept="gamma",
+                test_contained=1,
+                test_total=2,
+                train_contained=2,
+                train_total=2,
+            ),
         ]
 
     def test_top_limits_printed_nodes(
@@ -157,10 +178,22 @@ class TestPrintNodeResults:
         self,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """Nodes are printed sorted by total descending."""
+        """Nodes are printed sorted by test_total descending."""
         results = [
-            NodeResult(concept="small", contained=1, total=2),
-            NodeResult(concept="big", contained=5, total=10),
+            NodeResult(
+                concept="small",
+                test_contained=1,
+                test_total=2,
+                train_contained=2,
+                train_total=2,
+            ),
+            NodeResult(
+                concept="big",
+                test_contained=5,
+                test_total=10,
+                train_contained=8,
+                train_total=10,
+            ),
         ]
         print_node_results(results, top=2)
         output = capsys.readouterr().out
@@ -172,7 +205,22 @@ class TestPrintNodeResults:
         """Overall summary aggregates all nodes regardless of top."""
         print_node_results(results, top=1)
         output = capsys.readouterr().out
-        assert "overall contained=9/18" in output
+        assert "overall" in output
+        assert "test=9/18" in output
+        assert "train=15/18" in output
+
+    def test_training_accuracy_in_output(
+        self, results: list[NodeResult], capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Both training and test accuracy appear per node and overall."""
+        print_node_results(results, top=3)
+        output = capsys.readouterr().out
+        # Per-node lines should have train= and test=.
+        assert "train=8/10" in output
+        assert "test=5/10" in output
+        # Overall line should have train= and test=.
+        assert "train=15/18" in output
+        assert "test=9/18" in output
 
 
 class TestGraph:

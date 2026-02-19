@@ -19,8 +19,10 @@ MIN_SUBTREE_SIZE = 5
 
 class NodeResult(NamedTuple):
     concept: str
-    contained: int
-    total: int
+    test_contained: int
+    test_total: int
+    train_contained: int
+    train_total: int
 
 
 def _spaceaug_concept(concept: str) -> list[str]:
@@ -80,27 +82,30 @@ def create_train_test_split(
 
 
 def print_node_results(results: list[NodeResult], top: int = 10) -> None:
-    """Print per-node containment rate and overall summary."""
+    """Print per-node training and test accuracy and overall summary."""
 
     def _pct(contained: int, total: int) -> str:
         return f"{contained / total * 100:.1f}%"
 
-    # Only print the top N nodes by total; overall summary still uses all.
-    ranked = sorted(results, key=lambda r: r.total, reverse=True)
+    def _stats(label: str, contained: int, total: int) -> str:
+        return f"{label}={contained}/{total} ({_pct(contained, total)})"
+
+    # Only print the top N nodes by test_total; overall summary uses all.
+    ranked = sorted(results, key=lambda r: r.test_total, reverse=True)
     for r in ranked[:top]:
-        if r.total == 0:
+        if r.test_total == 0:
             continue
-        print(
-            f"{r.concept}  contained={r.contained}/{r.total}"
-            f" ({_pct(r.contained, r.total)})"
-        )
-    overall_contained = sum(r.contained for r in results)
-    overall_total = sum(r.total for r in results)
-    if overall_total > 0:
-        print(
-            f"overall contained={overall_contained}/{overall_total}"
-            f" ({_pct(overall_contained, overall_total)})"
-        )
+        train = _stats("train", r.train_contained, r.train_total)
+        test = _stats("test", r.test_contained, r.test_total)
+        print(f"{r.concept}  {train}  {test}")
+    overall_train_contained = sum(r.train_contained for r in results)
+    overall_train_total = sum(r.train_total for r in results)
+    overall_test_contained = sum(r.test_contained for r in results)
+    overall_test_total = sum(r.test_total for r in results)
+    if overall_test_total > 0:
+        train = _stats("train", overall_train_contained, overall_train_total)
+        test = _stats("test", overall_test_contained, overall_test_total)
+        print(f"overall {train}  {test}")
 
 
 def sensitivity(
@@ -141,23 +146,28 @@ def sensitivity(
         train_vecs = [
             all_embeddings[c] for c in split.train_set if c.strip() in subtree_concepts
         ]
-        total = sum(len(split.test_by_orig.get(c, [])) for c in node.concepts())
+        test_total = sum(len(split.test_by_orig.get(c, [])) for c in node.concepts())
+        train_total = len(train_vecs)
         if train_vecs:
             train_embeddings = np.array(train_vecs)
             region = shape_cls.fit(train_embeddings)
-            contained = sum(
+            test_contained = sum(
                 1
                 for orig_concept in node.concepts()
                 for test_concept in split.test_by_orig.get(orig_concept, [])
                 if region.contains(all_embeddings[test_concept])
             )
+            train_contained = sum(1 for v in train_vecs if region.contains(v))
         else:
-            contained = 0
+            test_contained = 0
+            train_contained = 0
         results.append(
             NodeResult(
                 concept=node.concept,
-                contained=contained,
-                total=total,
+                test_contained=test_contained,
+                test_total=test_total,
+                train_contained=train_contained,
+                train_total=train_total,
             )
         )
         stack.extend(node.children)
@@ -190,8 +200,8 @@ def graph(tree_name: str, dimension: int) -> go.Figure:
                     train_fraction=frac,
                     use_spaceaug=use_spaceaug,
                 )
-                total = sum(r.total for r in results)
-                contained = sum(r.contained for r in results)
+                total = sum(r.test_total for r in results)
+                contained = sum(r.test_contained for r in results)
                 accuracies.append(contained / total if total > 0 else 0.0)
                 progress.advance(task)
             color = {"hyperellipsoid": "blue", "convexhull": "green"}[shape]
