@@ -4,21 +4,75 @@ import math
 from typing import NamedTuple
 
 import numpy as np
+from scipy.optimize import minimize
 from scipy.spatial import ConvexHull as ScipyConvexHull
 from scipy.spatial import QhullError
 
 from tree import KnowledgeNode
 
-# QHull needs n > d, but word embeddings typically have n <= d. We use
-# PCA to project points into the subspace they span, build the hull
-# there, then test containment by projecting query points into that
-# subspace.
+# QHull needs n > d, but word embeddings typically have n <= d. For
+# n <= d we use QP distance to the convex hull with an OAS-derived
+# tolerance. For n > d, QHull works directly.
 
-# Maximum residual norm for a point to count as "on the subspace."
-_SUBSPACE_TOL: float = 1e-10
 # Slack for halfplane checks so boundary vertices aren't rejected by
 # floating-point noise.
 _HALFPLANE_TOL: float = 1e-12
+# Z-score multiplier for OAS tolerance (~95% coverage under Gaussian
+# assumption).
+_OAS_Z: float = 2.0
+
+
+def _oas_epsilon(S: np.ndarray, n: int, d: int, rank: int) -> float:
+    """Compute OAS shrinkage tolerance from SVD singular values.
+
+    Uses the Oracle Approximating Shrinkage formula (Chen et al., 2010)
+    to estimate a data-driven tolerance for convex hull containment
+    in the directions orthogonal to the data subspace.
+
+    Returns 0.0 when n <= 1, rank = 0, or d = rank (no null space).
+    """
+    if n <= 1 or rank == 0 or d == rank:
+        return 0.0
+    eigenvalues = S**2 / (n - 1)
+    tr_S = float(np.sum(eigenvalues))
+    tr_S2 = float(np.sum(eigenvalues**2))
+    mu = tr_S / d
+    rho_num = (1 - 2 / d) * tr_S2 + tr_S**2
+    rho_den = (n + 1 - 2 / d) * (tr_S2 - tr_S**2 / d)
+    if rho_den == 0:
+        return 0.0
+    rho = rho_num / rho_den
+    return float(_OAS_Z * math.sqrt((d - rank) * rho * mu))
+
+
+def _qp_distance(vertices: np.ndarray, point: np.ndarray) -> float:
+    """Find the distance from a point to the convex hull of vertices.
+
+    Solves min ||p - V^T lambda|| s.t. lambda >= 0, sum(lambda) = 1
+    via SLSQP. vertices is (n, d), point is (d,).
+    """
+    n = vertices.shape[0]
+    if n == 1:
+        return float(np.linalg.norm(point - vertices[0]))
+
+    def objective(lam: np.ndarray) -> float:
+        diff = point - lam @ vertices
+        return float(diff @ diff)
+
+    def gradient(lam: np.ndarray) -> np.ndarray:
+        diff = point - lam @ vertices
+        return -2.0 * (vertices @ diff)
+
+    lam0 = np.full(n, 1.0 / n)
+    result = minimize(
+        objective,
+        lam0,
+        jac=gradient,
+        method="SLSQP",
+        bounds=[(0.0, None)] * n,
+        constraints={"type": "eq", "fun": lambda lam: np.sum(lam) - 1.0},
+    )
+    return float(math.sqrt(max(result.fun, 0.0)))
 
 
 def _recompute_equations(
@@ -67,28 +121,25 @@ def _halfplane_contains(equations: np.ndarray, point: np.ndarray) -> bool:
 
 
 class ConvexHull(NamedTuple):
-    equations: np.ndarray  # (nfacet, k+1) in projected space, or (0, ?) fallback
+    equations: np.ndarray  # (nfacet, d+1) halfplanes, or (0, ?) fallback
     center: np.ndarray  # (d,) mean of points in ambient space
     radius: float  # max distance from center (for fallback ball)
-    basis: np.ndarray | None = None  # (k, d) orthonormal basis, or None for ambient
+    vertices: np.ndarray | None = None  # (n, d) original vecs for QP path
+    epsilon: float = 0.0  # OAS tolerance for QP containment
 
     def contains(self, vec: list[float]) -> bool:
         """Check whether a vector falls within this hull.
 
-        Uses halfplane equations when available, otherwise falls back
-        to a ball check. When basis is set, projects to the subspace
-        first and rejects points off the subspace.
+        For n <= d (vertices set): uses QP distance with OAS
+        tolerance. For n > d: uses halfplane equations, falling back
+        to a ball check.
         """
         point = np.asarray(vec)
-        if self.basis is not None:
-            diff = point - self.center
-            projected = self.basis @ diff
-            residual = diff - self.basis.T @ projected
-            if float(np.linalg.norm(residual)) > _SUBSPACE_TOL:
+        if self.vertices is not None:
+            # Quick reject: point outside bounding ball + tolerance.
+            if float(np.linalg.norm(point - self.center)) > self.radius + self.epsilon:
                 return False
-            if self.equations.shape[0] > 0:
-                return _halfplane_contains(self.equations, projected)
-            return float(np.linalg.norm(projected)) <= self.radius
+            return _qp_distance(self.vertices, point) <= self.epsilon
         if self.equations.shape[0] > 0:
             return _halfplane_contains(self.equations, point)
         return float(np.linalg.norm(point - self.center)) <= self.radius
@@ -97,39 +148,25 @@ class ConvexHull(NamedTuple):
     def fit(cls, vecs: np.ndarray) -> ConvexHull:
         """Fit a convex hull to a matrix of row vectors."""
         n, d = vecs.shape
-        # When n <= d, points span a subspace of R^d. Project via
-        # SVD/PCA into that subspace so QHull has enough points
-        # relative to d.
+        # When n <= d, use QP distance with OAS tolerance instead of
+        # QHull (which needs n > d).
         if n <= d:
             center = vecs.mean(axis=0)
             centered = vecs - center
-            _, S, Vt = np.linalg.svd(centered, full_matrices=False)
+            _, S, _ = np.linalg.svd(centered, full_matrices=False)
             # Standard numerical rank threshold, matching numpy's
             # convention.
             tol = S[0] * max(n, d) * np.finfo(vecs.dtype).eps
             rank = int(np.sum(S > tol))
-            # All points are identical (or nearly so).
-            if rank == 0:
-                return ConvexHull(
-                    equations=np.empty((0, 1)),
-                    center=center,
-                    radius=0.0,
-                    basis=np.empty((0, d)),
-                )
-            basis = Vt[:rank]
-            projected = centered @ basis.T
-            # QHull needs at least 2 dimensions. Rank 1 means
-            # collinear points, which fall back to a ball/segment.
-            if rank < 2:
-                return _subspace_hull(center, basis, projected)
-            try:
-                hull = ScipyConvexHull(projected)
-            except QhullError:
-                return _subspace_hull(center, basis, projected)
-            # Projected points are centered, so the origin is
-            # interior.
-            equations = _recompute_equations(hull.simplices, projected, np.zeros(rank))
-            return _subspace_hull(center, basis, projected, equations)
+            radius = float(np.linalg.norm(centered, axis=1).max())
+            epsilon = _oas_epsilon(S, n, d, rank)
+            return ConvexHull(
+                equations=np.empty((0, d + 1)),
+                center=center,
+                radius=radius,
+                vertices=vecs,
+                epsilon=epsilon,
+            )
         # n > d: QHull can work directly in the ambient space.
         try:
             hull = ScipyConvexHull(vecs)
@@ -156,27 +193,6 @@ def _fallback_ball(vecs: np.ndarray) -> ConvexHull:
         equations=np.empty((0, d + 1)),
         center=center,
         radius=radius,
-    )
-
-
-def _subspace_hull(
-    center: np.ndarray,
-    basis: np.ndarray,
-    projected: np.ndarray,
-    equations: np.ndarray | None = None,
-) -> ConvexHull:
-    """Build a ConvexHull in a PCA subspace.
-
-    If equations are provided, uses them; otherwise falls back to a
-    ball in the projected space.
-    """
-    rank = projected.shape[1]
-    radius = float(np.linalg.norm(projected, axis=1).max())
-    return ConvexHull(
-        equations=equations if equations is not None else np.empty((0, rank + 1)),
-        center=center,
-        radius=radius,
-        basis=basis,
     )
 
 
