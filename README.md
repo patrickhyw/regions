@@ -1,6 +1,6 @@
 # Feature Regions
 
-<img src="specvis.png" alt="sensitivity_visualization" width="75%">
+<img src="figures/specvis.png" alt="sensitivity_visualization" width="75%">
 
 
 Exploring how features can be represented as regions instead of directions.
@@ -42,7 +42,7 @@ and whitespace variants (` concept`, `concept `, ` concept `) are
 split into train/test. Without spaceaug, the originals themselves
 are split.
 
-<img src="sensitivity.png" alt="sensitivity" width="75%">
+<img src="figures/sensitivity.png" alt="sensitivity" width="75%">
 
 Key results:
 
