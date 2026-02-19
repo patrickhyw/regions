@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import argparse
-from typing import Literal, NamedTuple
+from typing import Callable, Literal, NamedTuple
 
 import numpy as np
 
@@ -51,32 +51,28 @@ def create_train_test_split(
         raise ValueError("train_fraction=1.0 leaves no test data")
 
     if use_spaceaug:
-        spaceaug_concepts = [v for c in concepts for v in _spaceaug_concept(c)]
-        all_concepts = concepts + spaceaug_concepts
-        indices = np.random.permutation(len(spaceaug_concepts))
-        mid = int(len(spaceaug_concepts) * train_fraction)
-        train_spaceaug = {spaceaug_concepts[i] for i in indices[:mid]}
-        train_set = set(concepts) | train_spaceaug
-        test_by_orig: dict[str, list[str]] = {}
-        for i in indices[mid:]:
-            sa = spaceaug_concepts[i]
-            orig = sa.strip()
-            test_by_orig.setdefault(orig, []).append(sa)
-        return TrainTestSplit(all_concepts, train_set, test_by_orig)
+        pool = [v for c in concepts for v in _spaceaug_concept(c)]
+        all_concepts = concepts + pool
+        base_train: set[str] = set(concepts)
+        orig_fn: Callable[[str], str] = str.strip
     else:
         if train_fraction == 0.0:
             raise ValueError(
                 "train_fraction=0.0 with use_spaceaug=False leaves no training data"
             )
-        all_concepts = list(concepts)
-        indices = np.random.permutation(len(concepts))
-        mid = int(len(concepts) * train_fraction)
-        train_set = {concepts[i] for i in indices[:mid]}
-        test_by_orig: dict[str, list[str]] = {}
-        for i in indices[mid:]:
-            c = concepts[i]
-            test_by_orig[c] = [c]
-        return TrainTestSplit(all_concepts, train_set, test_by_orig)
+        pool = list(concepts)
+        all_concepts = pool
+        base_train = set()
+        orig_fn = lambda c: c
+
+    indices = np.random.permutation(len(pool))
+    mid = int(len(pool) * train_fraction)
+    train_set = base_train | {pool[i] for i in indices[:mid]}
+    test_by_orig: dict[str, list[str]] = {}
+    for i in indices[mid:]:
+        item = pool[i]
+        test_by_orig.setdefault(orig_fn(item), []).append(item)
+    return TrainTestSplit(all_concepts, train_set, test_by_orig)
 
 
 def print_node_results(results: list[NodeResult], top: int = 10) -> None:
