@@ -11,7 +11,8 @@ from tree import KnowledgeNode
 
 # QHull needs n > d, but word embeddings typically have n <= d. We use
 # PCA to project points into the subspace they span, build the hull
-# there, then test containment by projecting back.
+# there, then test containment by projecting query points into that
+# subspace.
 
 # Maximum residual norm for a point to count as "on the subspace."
 _SUBSPACE_TOL: float = 1e-10
