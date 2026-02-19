@@ -12,6 +12,15 @@ from tree import build_named_tree
 from util import set_seed
 
 
+def marker_size(n: int) -> float:
+    """Return a marker size that scales inversely with point count.
+
+    Cube root scaling keeps total marker volume roughly constant as
+    point count changes (volume ~ r^3, so r ~ n^(-1/3)).
+    """
+    return max(1.0, 20 / n ** (1 / 3))
+
+
 def ellipsoid_surface(
     ell: Hyperellipsoid,
     pca: PCA,
@@ -109,6 +118,10 @@ if __name__ == "__main__":
         color=labels,
         color_discrete_map={"bird": "orange", "mammal": "blue"},
         hover_name=all_concepts,
+    )
+    fig.update_traces(
+        marker=dict(size=marker_size(len(all_concepts))),
+        selector=dict(mode="markers"),
     )
 
     bird_ell = Hyperellipsoid.fit(X[:n_birds])
