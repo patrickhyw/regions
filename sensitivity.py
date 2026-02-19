@@ -14,6 +14,8 @@ from shape import Shape
 from tree import build_named_tree
 from util import set_seed
 
+MIN_SUBTREE_SIZE = 5
+
 
 class NodeResult(NamedTuple):
     concept: str
@@ -132,6 +134,10 @@ def sensitivity(
     while stack:
         node = stack.pop()
         subtree_concepts = set(node.concepts())
+        # Ignore small subtrees since their containment behavior is an
+        # outlier but they together contribute a lot to the summary stats.
+        if len(subtree_concepts) < MIN_SUBTREE_SIZE:
+            continue
         train_vecs = [
             all_embeddings[c] for c in split.train_set if c.strip() in subtree_concepts
         ]

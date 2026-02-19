@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import pytest
 
 from sensitivity import (
+    MIN_SUBTREE_SIZE,
     NodeResult,
     TrainTestSplit,
     _spaceaug_concept,
@@ -31,6 +32,9 @@ class TestSensitivity:
                 children=[
                     KnowledgeNode(concept="dog"),
                     KnowledgeNode(concept="cat"),
+                    KnowledgeNode(concept="fish"),
+                    KnowledgeNode(concept="bird"),
+                    KnowledgeNode(concept="frog"),
                 ],
             )
         )
@@ -57,9 +61,23 @@ class TestSensitivity:
         mock_get_embeddings: MagicMock,
         shape: str,
     ) -> None:
-        """One NodeResult per tree node."""
+        """Only nodes with subtree size >= MIN_SUBTREE_SIZE get results."""
         results = sensitivity(shape=shape, tree_name="test", dimension=3)
-        assert len(results) == 3
+        assert len(results) == 1
+
+    def test_small_subtrees_excluded(
+        self,
+        mock_build_named_tree: MagicMock,
+        mock_get_embeddings: MagicMock,
+    ) -> None:
+        """Nodes with subtree size < MIN_SUBTREE_SIZE are excluded."""
+        results = sensitivity(shape="hyperellipsoid", tree_name="test", dimension=3)
+        result_concepts = {r.concept for r in results}
+        # Root has 6 concepts (animal + 5 leaves) >= MIN_SUBTREE_SIZE.
+        assert "animal" in result_concepts
+        # Each leaf has 1 concept < MIN_SUBTREE_SIZE.
+        for leaf in ["dog", "cat", "fish", "bird", "frog"]:
+            assert leaf not in result_concepts
 
     def test_train_fraction_zero_all_test(
         self,
@@ -166,6 +184,9 @@ class TestGraph:
                 children=[
                     KnowledgeNode(concept="dog"),
                     KnowledgeNode(concept="cat"),
+                    KnowledgeNode(concept="fish"),
+                    KnowledgeNode(concept="bird"),
+                    KnowledgeNode(concept="frog"),
                 ],
             )
         )
