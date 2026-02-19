@@ -282,6 +282,15 @@ class TestGraph:
             ]
             assert mock_progress.advance.call_count == 38
 
+    def test_title(
+        self,
+        mock_build_named_tree: MagicMock,
+        mock_get_embeddings: MagicMock,
+    ) -> None:
+        """Figure title includes tree name, dimension, and analysis type."""
+        fig = graph(tree_name="test", dimension=3)
+        assert fig.layout.title.text == "Sensitivity Analysis: test (dim=3)"
+
     def test_trace_styling(
         self,
         mock_build_named_tree: MagicMock,

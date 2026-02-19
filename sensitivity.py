@@ -206,6 +206,7 @@ def graph(tree_name: str, dimension: int) -> go.Figure:
                 )
             )
     fig.update_layout(
+        title=f"Sensitivity Analysis: {tree_name} (dim={dimension})",
         xaxis_title="Train Fraction",
         yaxis_title="Overall Accuracy",
         yaxis_range=[0, 1],
