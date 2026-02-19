@@ -9,6 +9,7 @@ from tqdm import tqdm
 from convexhull import ConvexHull
 from embedding import get_embeddings
 from hyperellipsoid import Hyperellipsoid
+from hypersphere import Hypersphere
 from shape import Shape
 from tree import KnowledgeNode, build_named_tree
 from util import set_seed
@@ -17,6 +18,7 @@ MAX_SIBLING_RATIO = 3.0
 MIN_SUBTREE_SIZE = 5
 SHAPE_CLASSES: dict[str, type[Shape]] = {
     "hyperellipsoid": Hyperellipsoid,
+    "hypersphere": Hypersphere,
     "convexhull": ConvexHull,
 }
 
@@ -53,9 +55,9 @@ def _fit_all(
 
 
 def specificity(
-    shape: Literal["hyperellipsoid", "convexhull"],
-    tree_name: str,
-    dimension: int,
+    shape: Literal["hyperellipsoid", "hypersphere", "convexhull"],
+    tree_name: str = "monkey",
+    dimension: int = 128,
     progress: bool = False,
 ) -> list[PairResult]:
     """Run specificity analysis for a named tree and embedding dimension."""
@@ -143,13 +145,15 @@ if __name__ == "__main__":
         description="Evaluate shape separation of sibling pairs."
     )
     parser.add_argument(
-        "tree_name",
-        help="Name of the tree (e.g. 'manual_tiny').",
+        "--tree-name",
+        default="monkey",
+        help="Name of the tree. Default: monkey.",
     )
     parser.add_argument(
-        "dimension",
+        "--dimension",
         type=int,
-        help="Dimension of embeddings.",
+        default=128,
+        help="Dimension of embeddings. Default: 128.",
     )
     parser.add_argument(
         "--shape",

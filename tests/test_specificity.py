@@ -103,6 +103,18 @@ class TestSpecificity:
         assert len(results) > 0
         assert all(isinstance(r, PairResult) for r in results)
 
+    def test_defaults_to_monkey_and_128(
+        self,
+        mock_build_named_tree: MagicMock,
+        mock_get_embeddings: MagicMock,
+        tree: KnowledgeTree,
+    ) -> None:
+        """Omitting tree_name/dimension uses 'monkey' and 128."""
+        specificity("hyperellipsoid")
+
+        mock_build_named_tree.assert_called_once_with("monkey")
+        mock_get_embeddings.assert_called_once_with(tree.root.concepts(), dimension=128)
+
     def test_skips_pair_when_individual_subtree_too_small(self) -> None:
         """Skip pairs where either individual subtree is too small.
 
