@@ -44,7 +44,7 @@ class TestHyperellipsoid:
         # in (0, 1)).
         n, d = 8, 4
         random_vecs = np.random.standard_normal((n, d))
-        ellipsoid = Hyperellipsoid.fit(random_vecs)
+        ellipsoid = Hyperellipsoid.fit(random_vecs.tolist())
         # Reconstruct LW precision the old way.
         mean = random_vecs.mean(axis=0)
         center = mean / np.linalg.norm(mean)
@@ -66,12 +66,12 @@ class TestHyperellipsoid:
 
     def test_returns_ellipsoid(self, vecs: list[list[float]]) -> None:
         """Returns a Hyperellipsoid NamedTuple."""
-        result = Hyperellipsoid.fit(np.array(vecs))
+        result = Hyperellipsoid.fit(vecs)
         assert isinstance(result, Hyperellipsoid)
 
     def test_center_is_normalized_mean(self, vecs: list[list[float]]) -> None:
         """Center is the unit-norm mean of all subtree embeddings."""
-        result = Hyperellipsoid.fit(np.array(vecs))
+        result = Hyperellipsoid.fit(vecs)
         # Mean of all 5 vectors: [3/5, 3/5, 3/5]
         raw_mean = np.array([0.6, 0.6, 0.6])
         expected = raw_mean / np.linalg.norm(raw_mean)
@@ -91,7 +91,7 @@ class TestHyperellipsoid:
     ) -> None:
         """Degenerate subtrees use the identity fallback."""
         d = len(input_vecs[0])
-        result = Hyperellipsoid.fit(np.array(input_vecs))
+        result = Hyperellipsoid.fit(input_vecs)
         assert result.alpha == 1.0
         assert result.X.shape == (0, d)
         assert result.M_inv.shape == (0, 0)
@@ -100,7 +100,7 @@ class TestHyperellipsoid:
         self, vecs: list[list[float]]
     ) -> None:
         """M_inv matrix is symmetric and positive definite."""
-        result = Hyperellipsoid.fit(np.array(vecs))
+        result = Hyperellipsoid.fit(vecs)
         assert result.M_inv.shape[0] > 0
         np.testing.assert_allclose(result.M_inv, result.M_inv.T, atol=1e-10)
         eigenvalues = np.linalg.eigvalsh(result.M_inv)
@@ -109,7 +109,7 @@ class TestHyperellipsoid:
     def test_threshold_is_chi_squared_95(self, vecs: list[list[float]]) -> None:
         """Threshold equals chi2.ppf(0.95, d) where d is the dimension
         of the embeddings."""
-        result = Hyperellipsoid.fit(np.array(vecs))
+        result = Hyperellipsoid.fit(vecs)
         d = 3  # conftest vectors are 3-dimensional
         assert result.threshold == pytest.approx(chi2.ppf(0.95, d))
 
@@ -141,7 +141,7 @@ class TestHyperellipsoid:
         # nonzero but doesn't dominate the variance.
         arr = np.random.standard_normal((n, 2)) * [1.0, 10.0]
         arr += [0.5, 0.5]
-        ellipsoid = Hyperellipsoid.fit(arr)
+        ellipsoid = Hyperellipsoid.fit(arr.tolist())
         center = ellipsoid.center
         # Same offset in both directions: tighter along x.
         offset = 15.0

@@ -124,8 +124,8 @@ if __name__ == "__main__":
         selector=dict(mode="markers"),
     )
 
-    bird_ell = Hyperellipsoid.fit(X[:n_birds])
-    mammal_ell = Hyperellipsoid.fit(X[n_birds:])
+    bird_ell = Hyperellipsoid.fit(embeddings[:n_birds])
+    mammal_ell = Hyperellipsoid.fit(embeddings[n_birds:])
     fig.add_trace(ellipsoid_surface(bird_ell, pca, color="orange"))
     fig.add_trace(ellipsoid_surface(mammal_ell, pca, color="blue"))
 

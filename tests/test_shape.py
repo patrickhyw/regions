@@ -1,5 +1,3 @@
-import numpy as np
-
 from shape import Shape
 
 
@@ -8,7 +6,7 @@ class _FakeShape:
         return True
 
     @classmethod
-    def fit(cls, vecs: np.ndarray) -> "_FakeShape":
+    def fit(cls, vecs: list[list[float]]) -> "_FakeShape":
         return cls()
 
 
@@ -21,5 +19,5 @@ class TestShape:
     def test_fit_classmethod_satisfies_protocol(self) -> None:
         """A class with a fit classmethod satisfies the Shape protocol."""
         cls: type[Shape] = _FakeShape
-        shape = cls.fit(np.array([[1.0, 2.0]]))
+        shape = cls.fit([[1.0, 2.0]])
         assert shape.contains([1.0, 2.0])

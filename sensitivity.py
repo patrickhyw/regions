@@ -149,8 +149,7 @@ def sensitivity(
         test_total = sum(len(split.test_by_orig.get(c, [])) for c in node.concepts())
         train_total = len(train_vecs)
         if train_vecs:
-            train_embeddings = np.array(train_vecs)
-            region = shape_cls.fit(train_embeddings)
+            region = shape_cls.fit(train_vecs)
             test_contained = sum(
                 1
                 for orig_concept in node.concepts()

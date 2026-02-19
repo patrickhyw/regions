@@ -33,19 +33,20 @@ class Hyperellipsoid(NamedTuple):
         return mahal <= self.threshold
 
     @classmethod
-    def fit(cls, vecs: np.ndarray) -> Hyperellipsoid:
+    def fit(cls, vecs: list[list[float]]) -> Hyperellipsoid:
         """Compute the hyperellipsoid for a set of vectors.
 
         Returns a factored Hyperellipsoid using the Woodbury identity so
         that only n x n matrices are formed (instead of d x d), where
         n is the number of samples.
         """
-        mean = vecs.mean(axis=0)
+        vecs_arr = np.asarray(vecs)
+        mean = vecs_arr.mean(axis=0)
         # Embeddings are unit-normalized, so direction matters more
         # than magnitude. Use the unit-norm mean as the ellipsoid
         # center.
         center = mean / np.linalg.norm(mean)
-        centered = vecs - center
+        centered = vecs_arr - center
         n, d = centered.shape
         # Under a Gaussian model, the 95th-percentile chi-squared
         # value gives a region containing ~95% of the probability

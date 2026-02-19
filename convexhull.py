@@ -145,18 +145,19 @@ class ConvexHull(NamedTuple):
         return float(np.linalg.norm(point - self.center)) <= self.radius
 
     @classmethod
-    def fit(cls, vecs: np.ndarray) -> ConvexHull:
-        """Fit a convex hull to a matrix of row vectors."""
-        n, d = vecs.shape
+    def fit(cls, vecs: list[list[float]]) -> ConvexHull:
+        """Fit a convex hull to a list of row vectors."""
+        vecs_arr = np.asarray(vecs)
+        n, d = vecs_arr.shape
         # When n <= d, use QP distance with OAS tolerance instead of
         # QHull (which needs n > d).
         if n <= d:
-            center = vecs.mean(axis=0)
-            centered = vecs - center
+            center = vecs_arr.mean(axis=0)
+            centered = vecs_arr - center
             _, S, _ = np.linalg.svd(centered, full_matrices=False)
             # Standard numerical rank threshold, matching numpy's
             # convention.
-            tol = S[0] * max(n, d) * np.finfo(vecs.dtype).eps
+            tol = S[0] * max(n, d) * np.finfo(vecs_arr.dtype).eps
             rank = int(np.sum(S > tol))
             radius = float(np.linalg.norm(centered, axis=1).max())
             epsilon = _oas_epsilon(S, n, d, rank)
@@ -164,19 +165,19 @@ class ConvexHull(NamedTuple):
                 equations=np.empty((0, d + 1)),
                 center=center,
                 radius=radius,
-                vertices=vecs,
+                vertices=vecs_arr,
                 epsilon=epsilon,
             )
         # n > d: QHull can work directly in the ambient space.
         try:
-            hull = ScipyConvexHull(vecs)
+            hull = ScipyConvexHull(vecs_arr)
         except QhullError:
-            return _fallback_ball(vecs)
-        center = vecs.mean(axis=0)
-        radius = float(np.linalg.norm(vecs - center, axis=1).max())
+            return _fallback_ball(vecs_arr)
+        center = vecs_arr.mean(axis=0)
+        radius = float(np.linalg.norm(vecs_arr - center, axis=1).max())
         # Recompute normals via SVD even in full rank; QHull's
         # internal equations lose precision in high dimensions.
-        equations = _recompute_equations(hull.simplices, vecs, center)
+        equations = _recompute_equations(hull.simplices, vecs_arr, center)
         return ConvexHull(equations=equations, center=center, radius=radius)
 
 
@@ -213,5 +214,4 @@ def convex_hull(
         if sample_size < len(concepts):
             indices = np.random.choice(len(concepts), size=sample_size, replace=False)
             concepts = [concepts[i] for i in indices]
-    vecs = np.array([representations[c] for c in concepts])
-    return ConvexHull.fit(vecs)
+    return ConvexHull.fit([representations[c] for c in concepts])

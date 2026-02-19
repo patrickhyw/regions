@@ -41,24 +41,22 @@ def unit_segment_hull() -> ConvexHull:
 
 
 @pytest.fixture()
-def high_dim_triangle_vecs() -> np.ndarray:
+def high_dim_triangle_vecs() -> list[list[float]]:
     """Three points forming a triangle in 10D."""
-    vecs = np.zeros((3, 10))
-    vecs[1, 0] = 4.0
-    vecs[2, 1] = 4.0
+    vecs = [[0.0] * 10 for _ in range(3)]
+    vecs[1][0] = 4.0
+    vecs[2][1] = 4.0
     return vecs
 
 
 @pytest.fixture()
-def collinear_vecs() -> np.ndarray:
+def collinear_vecs() -> list[list[float]]:
     """Three collinear points in 3D."""
-    return np.array(
-        [
-            [0.0, 0.0, 0.0],
-            [1.0, 0.0, 0.0],
-            [2.0, 0.0, 0.0],
-        ]
-    )
+    return [
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [2.0, 0.0, 0.0],
+    ]
 
 
 @pytest.fixture()
@@ -285,7 +283,9 @@ class TestConvexHull:
 
     # QP path tests (n <= d)
 
-    def test_vertices_set_when_n_le_d(self, high_dim_triangle_vecs: np.ndarray) -> None:
+    def test_vertices_set_when_n_le_d(
+        self, high_dim_triangle_vecs: list[list[float]]
+    ) -> None:
         """When n <= d, vertices are stored for QP path."""
         hull = ConvexHull.fit(high_dim_triangle_vecs)
         assert hull.vertices is not None
@@ -301,47 +301,51 @@ class TestConvexHull:
         assert hull.vertices is None
 
     def test_epsilon_positive_when_n_le_d(
-        self, high_dim_triangle_vecs: np.ndarray
+        self, high_dim_triangle_vecs: list[list[float]]
     ) -> None:
         """OAS epsilon is positive for n >= 2 with rank < d."""
         hull = ConvexHull.fit(high_dim_triangle_vecs)
         assert hull.epsilon > 0.0
 
     def test_high_dim_triangle_points_contained(
-        self, high_dim_triangle_vecs: np.ndarray
+        self, high_dim_triangle_vecs: list[list[float]]
     ) -> None:
         """All vertices of a triangle in 10D are contained."""
         hull = ConvexHull.fit(high_dim_triangle_vecs)
         for v in high_dim_triangle_vecs:
-            assert hull.contains(v.tolist())
+            assert hull.contains(v)
 
     def test_high_dim_triangle_interior_contained(
-        self, high_dim_triangle_vecs: np.ndarray
+        self, high_dim_triangle_vecs: list[list[float]]
     ) -> None:
         """A convex combination on the plane is inside."""
         hull = ConvexHull.fit(high_dim_triangle_vecs)
-        interior = high_dim_triangle_vecs.mean(axis=0)
+        interior = np.asarray(high_dim_triangle_vecs).mean(axis=0)
         assert hull.contains(interior.tolist())
 
     def test_point_off_subspace_not_contained(
-        self, high_dim_triangle_vecs: np.ndarray
+        self, high_dim_triangle_vecs: list[list[float]]
     ) -> None:
         """A point displaced far off the affine plane is rejected."""
         hull = ConvexHull.fit(high_dim_triangle_vecs)
-        interior = high_dim_triangle_vecs.mean(axis=0)
+        interior = np.asarray(high_dim_triangle_vecs).mean(axis=0)
         off_plane = interior.copy()
         # Displacement must exceed OAS epsilon (~5 for n=3, d=10).
         off_plane[2] = 100.0
         assert not hull.contains(off_plane.tolist())
 
-    def test_collinear_points_contained(self, collinear_vecs: np.ndarray) -> None:
+    def test_collinear_points_contained(
+        self, collinear_vecs: list[list[float]]
+    ) -> None:
         """Collinear points are all contained, plus midpoint."""
         hull = ConvexHull.fit(collinear_vecs)
         for v in collinear_vecs:
-            assert hull.contains(v.tolist())
+            assert hull.contains(v)
         assert hull.contains([1.0, 0.0, 0.0])
 
-    def test_collinear_outside_not_contained(self, collinear_vecs: np.ndarray) -> None:
+    def test_collinear_outside_not_contained(
+        self, collinear_vecs: list[list[float]]
+    ) -> None:
         """A point far beyond the collinear segment is rejected."""
         hull = ConvexHull.fit(collinear_vecs)
         # Distance must exceed OAS epsilon (~1.3 for n=3, d=3).
@@ -350,24 +354,25 @@ class TestConvexHull:
     def test_two_points_in_high_dim_contained(self) -> None:
         """Endpoints and midpoint of a segment in high-D
         are contained."""
-        vecs = np.zeros((2, 10))
-        vecs[0, 0] = 1.0
-        vecs[1, 0] = 3.0
-        hull = ConvexHull.fit(vecs)
-        assert hull.contains(vecs[0].tolist())
-        assert hull.contains(vecs[1].tolist())
-        mid = (vecs[0] + vecs[1]) / 2.0
-        assert hull.contains(mid.tolist())
+        v0 = [0.0] * 10
+        v1 = [0.0] * 10
+        v0[0] = 1.0
+        v1[0] = 3.0
+        hull = ConvexHull.fit([v0, v1])
+        assert hull.contains(v0)
+        assert hull.contains(v1)
+        mid = [(a + b) / 2.0 for a, b in zip(v0, v1)]
+        assert hull.contains(mid)
 
     def test_single_point_high_dim(self) -> None:
         """Only the exact point is contained for a single-point
         hull."""
-        vecs = np.array([[1.0, 2.0, 3.0, 4.0, 5.0]])
+        vecs = [[1.0, 2.0, 3.0, 4.0, 5.0]]
         hull = ConvexHull.fit(vecs)
-        assert hull.contains(vecs[0].tolist())
-        other = vecs[0].copy()
+        assert hull.contains(vecs[0])
+        other = list(vecs[0])
         other[0] += 0.1
-        assert not hull.contains(other.tolist())
+        assert not hull.contains(other)
 
     # ConvexHull.fit tests
 
@@ -379,7 +384,7 @@ class TestConvexHull:
         """ConvexHull.fit(vecs) produces the same result as
         convex_hull(node, reps) for equivalent data."""
         concepts = tree.concepts()
-        vecs = np.array([representations[c] for c in concepts])
+        vecs = [representations[c] for c in concepts]
         from_fit = ConvexHull.fit(vecs)
         from_hull = convex_hull(tree, representations)
         np.testing.assert_allclose(from_fit.equations, from_hull.equations)
@@ -392,20 +397,20 @@ class TestConvexHull:
         "vecs",
         [
             pytest.param(
-                np.array([[3.0, 4.0, 5.0]]),
+                [[3.0, 4.0, 5.0]],
                 id="single_vector",
             ),
             pytest.param(
-                np.array([[1.0, 0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0, 0.0]]),
+                [[1.0, 0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0, 0.0]],
                 id="two_vectors",
             ),
             pytest.param(
-                np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]],
                 id="collinear",
             ),
         ],
     )
-    def test_fallback(self, vecs: np.ndarray) -> None:
+    def test_fallback(self, vecs: list[list[float]]) -> None:
         """Degenerate inputs produce fallback behavior with empty
         equations."""
         result = ConvexHull.fit(vecs)
@@ -438,8 +443,8 @@ class TestConvexHull:
         n = d + 10
         cluster_a = np.random.standard_normal((n, d)) + 100.0
         cluster_b = np.random.standard_normal((n, d)) - 100.0
-        hull_a = ConvexHull.fit(cluster_a)
-        hull_b = ConvexHull.fit(cluster_b)
+        hull_a = ConvexHull.fit(cluster_a.tolist())
+        hull_b = ConvexHull.fit(cluster_b.tolist())
         for p in cluster_b:
             assert not hull_a.contains(p.tolist()), (
                 "Point from cluster B found inside hull A"
