@@ -18,7 +18,7 @@ def marker_size(n: int) -> float:
     Cube root scaling keeps total marker volume roughly constant as
     point count changes (volume ~ r^3, so r ~ n^(-1/3)).
     """
-    return max(1.0, 20 / n ** (1 / 3))
+    return max(2.0, 40 / n ** (1 / 3))
 
 
 def ellipsoid_surface(

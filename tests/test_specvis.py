@@ -11,15 +11,15 @@ class TestMarkerSize:
     @pytest.mark.parametrize(
         ("n", "expected"),
         [
-            (1, 20.0),
-            (8, 10.0),
-            (1000, 2.0),
-            (8_000_000, 0.1),
+            (1, 40.0),
+            (8, 20.0),
+            (1000, 4.0),
+            (8_000_000, 0.2),
         ],
     )
     def test_scales_with_cube_root(self, n: int, expected: float) -> None:
-        """Marker size follows 20 / n^(1/3), floored at 1."""
-        assert marker_size(n) == pytest.approx(max(1.0, expected), rel=1e-6)
+        """Marker size follows 40 / n^(1/3), floored at 2."""
+        assert marker_size(n) == pytest.approx(max(2.0, expected), rel=1e-6)
 
     def test_decreases_as_n_grows(self) -> None:
         """More points should produce smaller markers."""
@@ -27,8 +27,8 @@ class TestMarkerSize:
         assert sizes == sorted(sizes, reverse=True)
 
     def test_floor_at_one(self) -> None:
-        """Marker size never drops below 1."""
-        assert marker_size(10**9) == 1.0
+        """Marker size never drops below 2."""
+        assert marker_size(10**9) == 2.0
 
 
 class TestHyperellipsoidSurface:
