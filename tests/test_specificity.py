@@ -8,6 +8,7 @@ from specificity import (
     MIN_SUBTREE_SIZE,
     PairResult,
     evaluate_sibling_pairs,
+    print_results,
     specificity,
 )
 from tree import KnowledgeNode, KnowledgeTree
@@ -130,3 +131,87 @@ class TestSpecificity:
         reps: dict[str, list[float]] = {}
         results = evaluate_sibling_pairs(tree, reps, MagicMock, _shapes=mock_shapes)
         assert results == []
+
+
+class TestPrintResults:
+    @pytest.fixture()
+    def results(self) -> list[PairResult]:
+        return [
+            PairResult(
+                concepts=("alpha_a", "alpha_b"),
+                correct=5,
+                in_neither=3,
+                in_both=2,
+                total=10,
+            ),
+            PairResult(
+                concepts=("beta_a", "beta_b"),
+                correct=3,
+                in_neither=2,
+                in_both=1,
+                total=6,
+            ),
+            PairResult(
+                concepts=("gamma_a", "gamma_b"),
+                correct=1,
+                in_neither=1,
+                in_both=0,
+                total=2,
+            ),
+        ]
+
+    def test_top_limits_printed_pairs(
+        self, results: list[PairResult], capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Only the top N pairs by total are printed."""
+        print_results(results, top=2)
+        output = capsys.readouterr().out
+        assert "alpha" in output
+        assert "beta" in output
+        assert "gamma" not in output
+
+    def test_prints_in_descending_total_order(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Pairs are printed sorted by total descending."""
+        results = [
+            PairResult(
+                concepts=("small_a", "small_b"),
+                correct=1,
+                in_neither=1,
+                in_both=0,
+                total=2,
+            ),
+            PairResult(
+                concepts=("big_a", "big_b"),
+                correct=5,
+                in_neither=3,
+                in_both=2,
+                total=10,
+            ),
+        ]
+        print_results(results, top=2)
+        output = capsys.readouterr().out
+        assert output.index("big") < output.index("small")
+
+    def test_overall_summary_includes_all_pairs(
+        self, results: list[PairResult], capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Overall summary aggregates all pairs regardless of top."""
+        print_results(results, top=1)
+        output = capsys.readouterr().out
+        assert "overall" in output
+        assert "9/18" in output
+
+    def test_accuracy_in_output(
+        self, results: list[PairResult], capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Per-pair and overall lines have expected values."""
+        print_results(results, top=3)
+        output = capsys.readouterr().out
+        # Per-pair line for alpha.
+        assert "accuracy=5/10" in output
+        assert "in_neither=3" in output
+        assert "in_both=2" in output
+        # Overall line.
+        assert "overall accuracy=9/18" in output

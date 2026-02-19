@@ -133,21 +133,21 @@ def specificity(
     )
 
 
-def print_results(results: list[PairResult]) -> None:
+def print_results(results: list[PairResult], top: int = 10) -> None:
     """Print per-pair accuracy and overall accuracy summary."""
 
     def _pct(correct: int, total: int) -> str:
         return f"{correct / total * 100:.1f}%"
 
-    for result in results:
+    ranked = sorted(results, key=lambda r: r.total, reverse=True)
+    for result in ranked[:top]:
         a, b = result.concepts
-        if result.total > 100:
-            print(
-                f"({a}, {b})  accuracy={result.correct}/{result.total}"
-                f" ({_pct(result.correct, result.total)})"
-                f"  in_neither={result.in_neither}"
-                f"  in_both={result.in_both}"
-            )
+        print(
+            f"({a}, {b})  accuracy={result.correct}/{result.total}"
+            f" ({_pct(result.correct, result.total)})"
+            f"  in_neither={result.in_neither}"
+            f"  in_both={result.in_both}"
+        )
     overall_correct = sum(r.correct for r in results)
     overall_in_neither = sum(r.in_neither for r in results)
     overall_in_both = sum(r.in_both for r in results)
