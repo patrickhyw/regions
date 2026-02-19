@@ -11,7 +11,7 @@ from scipy.stats import chi2
 
 
 class Hyperellipsoid(NamedTuple):
-    center: np.ndarray  # (d,) unit-norm mean
+    center: np.ndarray  # (d,) mean
     alpha: float  # shrinkage * mu, the identity coefficient
     X: np.ndarray  # (n, d) centered data, or (0, d) for fallback
     M_inv: np.ndarray  # (n, n) Woodbury core inverse, or (0, 0)
@@ -41,11 +41,7 @@ class Hyperellipsoid(NamedTuple):
         n is the number of samples.
         """
         vecs_arr = np.asarray(vecs)
-        mean = vecs_arr.mean(axis=0)
-        # Embeddings are unit-normalized, so direction matters more
-        # than magnitude. Use the unit-norm mean as the ellipsoid
-        # center.
-        center = mean / np.linalg.norm(mean)
+        center = vecs_arr.mean(axis=0)
         centered = vecs_arr - center
         n, d = centered.shape
         # Under a Gaussian model, the 95th-percentile chi-squared

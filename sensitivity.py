@@ -10,11 +10,17 @@ from rich.progress import Progress
 from convexhull import ConvexHull
 from embedding import get_embeddings
 from hyperellipsoid import Hyperellipsoid
+from hypersphere import Hypersphere
 from shape import Shape
 from tree import build_named_tree
 from util import set_seed
 
 MIN_SUBTREE_SIZE = 5
+SHAPE_CLASSES: dict[str, type[Shape]] = {
+    "hyperellipsoid": Hyperellipsoid,
+    "hypersphere": Hypersphere,
+    "convexhull": ConvexHull,
+}
 
 
 class NodeResult(NamedTuple):
@@ -109,7 +115,7 @@ def print_node_results(results: list[NodeResult], top: int = 10) -> None:
 
 
 def sensitivity(
-    shape: Literal["hyperellipsoid", "convexhull"],
+    shape: Literal["hyperellipsoid", "hypersphere", "convexhull"],
     tree_name: str = "monkey",
     dimension: int = 128,
     train_fraction: float = 0.0,
@@ -127,11 +133,7 @@ def sensitivity(
     embeddings_list = get_embeddings(split.all_concepts, dimension=dimension)
     all_embeddings = dict(zip(split.all_concepts, embeddings_list))
 
-    shape_classes: dict[str, type[Shape]] = {
-        "hyperellipsoid": Hyperellipsoid,
-        "convexhull": ConvexHull,
-    }
-    shape_cls = shape_classes[shape]
+    shape_cls = SHAPE_CLASSES[shape]
 
     # Fit shapes and evaluate per-node containment in a single DFS pass.
     results: list[NodeResult] = []
@@ -246,7 +248,7 @@ if __name__ == "__main__":
     run_parser.add_argument(
         "--shape",
         default="hyperellipsoid",
-        choices=["hyperellipsoid", "convexhull"],
+        choices=SHAPE_CLASSES,
         help="Shape type. Default: hyperellipsoid.",
     )
     run_parser.add_argument(

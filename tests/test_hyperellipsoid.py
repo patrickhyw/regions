@@ -46,8 +46,7 @@ class TestHyperellipsoid:
         random_vecs = np.random.standard_normal((n, d))
         ellipsoid = Hyperellipsoid.fit(random_vecs.tolist())
         # Reconstruct LW precision the old way.
-        mean = random_vecs.mean(axis=0)
-        center = mean / np.linalg.norm(mean)
+        center = random_vecs.mean(axis=0)
         centered = random_vecs - center
         lw = LedoitWolf(assume_centered=True).fit(centered)
         # Test several query points.
@@ -69,12 +68,10 @@ class TestHyperellipsoid:
         result = Hyperellipsoid.fit(vecs)
         assert isinstance(result, Hyperellipsoid)
 
-    def test_center_is_normalized_mean(self, vecs: list[list[float]]) -> None:
-        """Center is the unit-norm mean of all subtree embeddings."""
+    def test_center_is_mean(self, vecs: list[list[float]]) -> None:
+        """Center is the raw arithmetic mean of input vectors."""
         result = Hyperellipsoid.fit(vecs)
-        # Mean of all 5 vectors: [3/5, 3/5, 3/5]
-        raw_mean = np.array([0.6, 0.6, 0.6])
-        expected = raw_mean / np.linalg.norm(raw_mean)
+        expected = np.array(vecs).mean(axis=0)
         np.testing.assert_allclose(result.center, expected)
 
     @pytest.mark.parametrize(
