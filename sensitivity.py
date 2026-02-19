@@ -10,6 +10,7 @@ from embedding import get_embeddings
 from hyperellipsoid import Hyperellipsoid
 from shape import Shape
 from tree import build_named_tree
+from util import set_seed
 
 
 class NodeResult(NamedTuple):
@@ -148,8 +149,6 @@ if __name__ == "__main__":
         " (0.0 to 1.0). Default: 0.0.",
     )
     args = parser.parse_args()
-
-    from util import set_seed
 
     set_seed()
     print_node_results(

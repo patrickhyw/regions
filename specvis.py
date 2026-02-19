@@ -6,7 +6,10 @@ import plotly.graph_objects as go
 from scipy.stats import chi2
 from sklearn.decomposition import PCA
 
+from embedding import get_embeddings
 from hyperellipsoid import Hyperellipsoid
+from tree import build_named_tree
+from util import set_seed
 
 
 def ellipsoid_surface(
@@ -79,10 +82,6 @@ def ellipsoid_surface(
 
 
 if __name__ == "__main__":
-    from embedding import get_embeddings
-    from tree import build_named_tree
-    from util import set_seed
-
     set_seed()
 
     tree = build_named_tree("animalmin")

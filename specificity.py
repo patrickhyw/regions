@@ -12,6 +12,7 @@ from embedding import get_embeddings
 from hyperellipsoid import Hyperellipsoid
 from shape import Shape
 from tree import KnowledgeNode, build_named_tree
+from util import set_seed
 
 MAX_SIBLING_RATIO = 3.0
 MIN_SUBTREE_SIZE = 10
@@ -179,8 +180,6 @@ if __name__ == "__main__":
         help="Shape type. Default: hyperellipsoid.",
     )
     args = parser.parse_args()
-
-    from util import set_seed
 
     set_seed()
     print_results(
