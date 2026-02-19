@@ -15,7 +15,7 @@ from tree import KnowledgeNode, build_named_tree
 from util import set_seed
 
 MAX_SIBLING_RATIO = 3.0
-MIN_SUBTREE_SIZE = 10
+MIN_SUBTREE_SIZE = 5
 
 
 class PairResult(NamedTuple):
@@ -69,7 +69,7 @@ def evaluate_sibling_pairs(
         size_a, size_b = len(a.concepts()), len(b.concepts())
         if max(size_a, size_b) / min(size_a, size_b) > MAX_SIBLING_RATIO:
             continue
-        if size_a + size_b < MIN_SUBTREE_SIZE:
+        if min(size_a, size_b) < MIN_SUBTREE_SIZE:
             continue
         correct = 0
         in_neither = 0
