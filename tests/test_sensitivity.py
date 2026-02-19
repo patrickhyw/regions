@@ -94,3 +94,15 @@ class TestSensitivity:
             assert r.contained >= 0
             assert r.total >= 0
             assert r.contained <= r.total
+
+    def test_defaults(
+        self,
+        mock_build_named_tree: MagicMock,
+        mock_get_embeddings: MagicMock,
+    ) -> None:
+        """tree_name defaults to 'primate' and dimension defaults to 128."""
+        sensitivity(shape="hyperellipsoid")
+        mock_build_named_tree.assert_called_once_with("primate")
+        mock_get_embeddings.assert_called_once()
+        _, kwargs = mock_get_embeddings.call_args
+        assert kwargs["dimension"] == 128

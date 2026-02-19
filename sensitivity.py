@@ -51,8 +51,8 @@ def print_node_results(results: list[NodeResult]) -> None:
 
 def sensitivity(
     shape: Literal["hyperellipsoid", "convexhull"],
-    tree_name: str,
-    dimension: int,
+    tree_name: str = "primate",
+    dimension: int = 128,
     train_fraction: float = 0.0,
 ) -> list[NodeResult]:
     """Run sensitivity analysis.
@@ -124,13 +124,15 @@ if __name__ == "__main__":
         " and evaluate on held-out spaceaug data."
     )
     parser.add_argument(
-        "tree_name",
-        help="Name of the tree (e.g. 'manual_tiny').",
+        "--tree-name",
+        default="primate",
+        help="Name of the tree. Default: primate.",
     )
     parser.add_argument(
-        "dimension",
+        "--dimension",
         type=int,
-        help="Dimension of embeddings.",
+        default=128,
+        help="Dimension of embeddings. Default: 128.",
     )
     parser.add_argument(
         "--shape",
