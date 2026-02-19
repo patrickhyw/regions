@@ -28,13 +28,15 @@ def _spaceaug_concept(concept: str) -> list[str]:
     return [f" {concept}", f"{concept} ", f" {concept} "]
 
 
-def print_node_results(results: list[NodeResult]) -> None:
+def print_node_results(results: list[NodeResult], top: int = 10) -> None:
     """Print per-node containment rate and overall summary."""
 
     def _pct(contained: int, total: int) -> str:
         return f"{contained / total * 100:.1f}%"
 
-    for r in results:
+    # Only print the top N nodes by total; overall summary still uses all.
+    ranked = sorted(results, key=lambda r: r.total, reverse=True)
+    for r in ranked[:top]:
         if r.total == 0:
             continue
         print(

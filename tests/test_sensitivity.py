@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from sensitivity import NodeResult, _spaceaug_concept, sensitivity
+from sensitivity import NodeResult, _spaceaug_concept, print_node_results, sensitivity
 from tree import KnowledgeNode, KnowledgeTree
 
 
@@ -104,3 +104,44 @@ class TestSensitivity:
         mock_get_embeddings.assert_called_once()
         _, kwargs = mock_get_embeddings.call_args
         assert kwargs["dimension"] == 128
+
+
+class TestPrintNodeResults:
+    @pytest.fixture()
+    def results(self) -> list[NodeResult]:
+        return [
+            NodeResult(concept="alpha", contained=5, total=10),
+            NodeResult(concept="beta", contained=3, total=6),
+            NodeResult(concept="gamma", contained=1, total=2),
+        ]
+
+    def test_top_limits_printed_nodes(
+        self, results: list[NodeResult], capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Only the top N nodes by total are printed."""
+        print_node_results(results, top=2)
+        output = capsys.readouterr().out
+        assert "alpha" in output
+        assert "beta" in output
+        assert "gamma" not in output
+
+    def test_prints_in_descending_total_order(
+        self,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Nodes are printed sorted by total descending."""
+        results = [
+            NodeResult(concept="small", contained=1, total=2),
+            NodeResult(concept="big", contained=5, total=10),
+        ]
+        print_node_results(results, top=2)
+        output = capsys.readouterr().out
+        assert output.index("big") < output.index("small")
+
+    def test_overall_summary_includes_all_nodes(
+        self, results: list[NodeResult], capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Overall summary aggregates all nodes regardless of top."""
+        print_node_results(results, top=1)
+        output = capsys.readouterr().out
+        assert "overall contained=9/18" in output
