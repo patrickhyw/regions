@@ -39,10 +39,24 @@ Some candidate geometries are:
 
 ## Experiments
 
+### Precision & Recall
+
+AUPRC measures one-vs-rest classification quality across subtrees,
+sweeping the confidence threshold to trace a precision-recall curve.
+
+To reproduce:
+
+```bash
+# animal is the largest tree and 768 is a middle dimension between 128 and 3072.
+python auprc.py graph --tree-name animalmin --dimension 768
+```
+
+<img src="figures/auprc.png" alt="AUPRC" width="75%">
+
+Hyperellipsoid (0.98) strongly outperforms hypersphere (0.82), maintaining near-perfect precision across most recall levels.
+
 ## Discussion
-
-generalization
-
-volumes of regions at different depths
-
-total volume of embedding space covered by known regions
+the shapes here are built with all points of the class (to test precision and recall). however, generalization to unseen points of the same class is not tested.
+idea: volumes of regions at different depths
+idea: volume change throughout layers. can show how concepts are formed
+idea: total volume of embedding space covered by known regions
