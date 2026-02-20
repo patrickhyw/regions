@@ -190,8 +190,8 @@ if __name__ == "__main__":
     for sub in [print_parser, graph_parser]:
         sub.add_argument(
             "--tree-name",
-            default="mammal",
-            help="Name of the tree. Default: mammal.",
+            default="mammalmin",
+            help="Name of the tree. Default: mammalmin.",
         )
         sub.add_argument(
             "--dimension",
