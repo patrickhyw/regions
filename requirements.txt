@@ -1,0 +1,11 @@
+diskcache
+google-genai
+nltk
+numpy
+pandas
+plotly
+pydantic
+pytest
+rich
+scikit-learn
+scipy
