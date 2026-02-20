@@ -6,7 +6,7 @@ class _FakeShape:
         return True
 
     @classmethod
-    def fit(cls, vecs: list[list[float]]) -> "_FakeShape":
+    def fit(cls, vecs: list[list[float]], confidence: float = 0.95) -> "_FakeShape":
         return cls()
 
 

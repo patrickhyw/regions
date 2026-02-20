@@ -33,7 +33,7 @@ class Hyperellipsoid(NamedTuple):
         return mahal <= self.threshold
 
     @classmethod
-    def fit(cls, vecs: list[list[float]]) -> Hyperellipsoid:
+    def fit(cls, vecs: list[list[float]], confidence: float = 0.95) -> Hyperellipsoid:
         """Compute the hyperellipsoid for a set of vectors.
 
         Returns a factored Hyperellipsoid using the Woodbury identity so
@@ -47,7 +47,7 @@ class Hyperellipsoid(NamedTuple):
         # Under a Gaussian model, the 95th-percentile chi-squared
         # value gives a region containing ~95% of the probability
         # mass.
-        threshold = float(chi2.ppf(0.95, df=d))
+        threshold = float(chi2.ppf(confidence, df=d))
         # Ledoit-Wolf needs at least 3 samples for a meaningful
         # shrinkage estimate.
         if n < 3:

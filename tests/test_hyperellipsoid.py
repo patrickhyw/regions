@@ -103,12 +103,18 @@ class TestHyperellipsoid:
         eigenvalues = np.linalg.eigvalsh(result.M_inv)
         assert all(eigenvalues > 0)
 
-    def test_threshold_is_chi_squared_95(self, vecs: list[list[float]]) -> None:
-        """Threshold equals chi2.ppf(0.95, d) where d is the dimension
-        of the embeddings."""
-        result = Hyperellipsoid.fit(vecs)
+    @pytest.mark.parametrize(
+        "confidence",
+        [pytest.param(0.95, id="95"), pytest.param(0.99, id="99")],
+    )
+    def test_threshold_is_chi_squared(
+        self, vecs: list[list[float]], confidence: float
+    ) -> None:
+        """Threshold equals chi2.ppf(confidence, d) where d is the
+        dimension of the embeddings."""
+        result = Hyperellipsoid.fit(vecs, confidence=confidence)
         d = 3  # conftest vectors are 3-dimensional
-        assert result.threshold == pytest.approx(chi2.ppf(0.95, d))
+        assert result.threshold == pytest.approx(chi2.ppf(confidence, d))
 
     # --- Hyperellipsoid.contains() ---
 

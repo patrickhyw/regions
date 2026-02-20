@@ -145,7 +145,7 @@ class ConvexHull(NamedTuple):
         return float(np.linalg.norm(point - self.center)) <= self.radius
 
     @classmethod
-    def fit(cls, vecs: list[list[float]]) -> ConvexHull:
+    def fit(cls, vecs: list[list[float]], confidence: float = 0.95) -> ConvexHull:
         """Fit a convex hull to a list of row vectors."""
         vecs_arr = np.asarray(vecs)
         n, d = vecs_arr.shape

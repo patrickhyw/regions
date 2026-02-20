@@ -17,7 +17,7 @@ class Hypersphere(NamedTuple):
         return float(diff @ diff) / self.variance <= self.threshold
 
     @classmethod
-    def fit(cls, vecs: list[list[float]]) -> Hypersphere:
+    def fit(cls, vecs: list[list[float]], confidence: float = 0.95) -> Hypersphere:
         """Fit an isotropic hypersphere to a set of vectors.
 
         Under an isotropic Gaussian, ||x - center||^2 / sigma^2
@@ -29,5 +29,5 @@ class Hypersphere(NamedTuple):
         n, d = vecs_arr.shape
         sq_dists = np.sum((vecs_arr - center) ** 2, axis=1)
         variance = float(sq_dists.mean()) / d
-        threshold = float(chi2.ppf(0.95, df=d))
+        threshold = float(chi2.ppf(confidence, df=d))
         return Hypersphere(center=center, variance=variance, threshold=threshold)
