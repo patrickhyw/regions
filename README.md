@@ -32,6 +32,9 @@ Some candidate geometries are:
 3. **Hyperellipsoid + shrinkage**: a hyperellipsoid centered at the mean with radius equal to variance times a confidence threshold, and shrinkage to make the shape full-dimension when `n<d`.
     - Pros: generative, bounded, full-dimensional with shrinkage, high precision & recall (see experiments), simple.
     - Cons: requires shrinkage to be full-dimensional, which is extra complexity.
+4. **Convex hull**: a convex hull of the points of the class.
+    - Pros: generative, bounded, likely high precision & recall (due to linear separability).
+    - Cons: no simple method like shrinkage to be full-dimension without `O(d)` points. Less simple than hyperellipsoid in general as well.
 
 ## Experiments
 
@@ -48,13 +51,17 @@ To reproduce:
 ```bash
 pip install -r requirements.txt
 
-# animal is the largest tree and 768 is a middle dimension between 128 and 3072.
+# animal is the largest tree and 768 is an intermediate dimension between 128 and 3072, the min and max of the embedding model.
 python auprc.py graph --tree-name animalmin --dimension 768
 ```
 
 ## Future Work
 
-Since the shapes have volume, many things can be explored:
+These findings may have implications for linear probing:
+ - Since hyperellipsoids outperform hyperspheres, some sort of direction-weighted cosine similarity might be more accurate than standard cosine similarity for probes.
+ - Thinking further, the confidence estimate of the shape could be a better metric than cosine similarity as this naturally provides a probabilistic confidence level specific to that concept (the same cosine similarity may imply difference confidence levels for different concepts).
+
+Also, since the shapes have volume, many things can be explored:
  - Quantifying the % of the representation space we understand by summing volume of known feature regions.
  - Quantifying concept formation by studying volume change of features throughout LLM layers.
  - Quantifying amount of "null space" left for clean separation boundaries by subtracting combined volume of subcategories from volume of higher-level category (e.g. animal - (mammal + bird)).
