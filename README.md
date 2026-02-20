@@ -25,17 +25,17 @@ An ideal region geometry should have all of these properties:
 Some candidate geometries are:
 
 1. **Linear separation polytope**: a polytope formed by the linear separation boundaries between all classes.
-  1. Pros: full-dimensional, near perfect precision & recall (almost all classes are linearly separable), simple.
-  2. Cons: discriminative, not bounded without `O(d)` classes.
+    - Pros: full-dimensional, near perfect precision & recall (almost all classes are linearly separable), simple.
+    - Cons: discriminative, not bounded without `O(d)` classes.
 2. **Hypersphere**: a hypersphere centered at the mean with radius equal to variance times a confidence threshold.
-  1. Pros: generative, bounded, full-dimensional, simple.
-  2. Cons: low precision & recall (see experiments).
+    - Pros: generative, bounded, full-dimensional, simple.
+    - Cons: low precision & recall (see experiments).
 3. **Hyperellipsoid + shrinkage**: a hyperellipsoid centered at the mean with radius equal to variance times a confidence threshold, and shrinkage coefficient to regularize the covariance matrix.
-  1. Pros: generative, bounded, full-dimensional (with shrinkage), high precision & recall (see experiments), simple.
-  2. Cons: doesn't generalize well to unseen points (see experiments).
+    - Pros: generative, bounded, full-dimensional (with shrinkage), high precision & recall (see experiments), simple.
+    - Cons: doesn't generalize well to unseen points (see experiments).
 4. **Convex hull + tolerance**: a convex hull formed by the points of all classes, with a tolerance parameter to make it full-dimensional.
-  1. Pros: generative, bounded, full-dimensional (with tolerance), likely high precision & recall due to linear separability.
-  2. Cons: less simple than hyperellipsoid. Since hyperellipsoids already have great precision & recall, this complexity doesn't seem justified as of now.
+    - Pros: generative, bounded, full-dimensional (with tolerance), likely high precision & recall due to linear separability.
+    - Cons: less simple than hyperellipsoid. Since hyperellipsoids already have great precision & recall, this complexity doesn't seem justified as of now.
 
 ## Experiments
 
