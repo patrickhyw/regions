@@ -1,6 +1,6 @@
 # Feature Regions
 
-<img src="figures/specvis.png" alt="sensitivity_visualization" width="75%">
+<img src="figures/specvis.png" alt="generalization_visualization" width="75%">
 
 
 Exploring how features can be represented as regions instead of directions.
@@ -13,12 +13,12 @@ Exploring how features can be represented as regions instead of directions.
   are modular.
 2. **Bounded** (finite volume) without needing `~d` points, for generalization to unseen points of *different* classes.
 3. **Full-dimensional** (>0 volume) without needing `~d` points, for generalization to unseen points of the *same* class.
-4. **Sensitivity** — correctly includes members.
+4. **Generalization** — correctly includes members.
 5. **Specificity** — correctly excludes non-members.
 
 ### Types of Regions
 
-| Method | Generative | Bounded | Full-dimensional | Sensitivity | Specificity |
+| Method | Generative | Bounded | Full-dimensional | Generalization | Specificity |
 | --- | --- | --- | --- | --- | --- |
 | Polytope (linear boundaries) | no | no | no | ~100% | ~100% |
 | Convex hull + PCA | yes | yes | no | ~100% | ~100% |
@@ -29,9 +29,9 @@ Hyperellipsoids + shrinkage hits the sweet spot across all desired properties.
 
 ## Experiments
 
-### Sensitivity
+### Generalization
 
-Sensitivity measures how well fitted regions contain held-out members.
+Generalization measures how well fitted regions contain held-out members.
 Regions are fitted on a training subset of concepts, then tested on
 whether the remaining concepts' embeddings fall inside the fitted
 region. The train fraction is swept from 0.0 to 0.9.
@@ -42,7 +42,7 @@ and whitespace variants (` concept`, `concept `, ` concept `) are
 split into train/test. Without spaceaug, the originals themselves
 are split.
 
-<img src="figures/sensitivity.png" alt="sensitivity" width="75%">
+<img src="figures/generalization.png" alt="generalization" width="75%">
 
 Key results:
 

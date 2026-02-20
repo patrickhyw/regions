@@ -5,20 +5,20 @@ import numpy as np
 import plotly.graph_objects as go
 import pytest
 
-from sensitivity import (
+from generalization import (
     MIN_SUBTREE_SIZE,
     NodeResult,
     TrainTestSplit,
     _spaceaug_concept,
     create_train_test_split,
+    generalization,
     graph,
     print_node_results,
-    sensitivity,
 )
 from tree import KnowledgeNode, KnowledgeTree
 
 
-class TestSensitivity:
+class TestGeneralization:
     def test_single_concept(self) -> None:
         """Generates three whitespace variants for one concept."""
         result = _spaceaug_concept("dog")
@@ -43,7 +43,7 @@ class TestSensitivity:
     def mock_build_named_tree(
         self, tree: KnowledgeTree
     ) -> Generator[MagicMock, None, None]:
-        with patch("sensitivity.build_named_tree", return_value=tree) as mock:
+        with patch("generalization.build_named_tree", return_value=tree) as mock:
             yield mock
 
     @pytest.fixture()
@@ -51,7 +51,7 @@ class TestSensitivity:
         def _fake(texts: list[str], *, dimension: int) -> list[list[float]]:
             return [np.random.standard_normal(dimension).tolist() for _ in texts]
 
-        with patch("sensitivity.get_embeddings", side_effect=_fake) as mock:
+        with patch("generalization.get_embeddings", side_effect=_fake) as mock:
             yield mock
 
     @pytest.mark.parametrize("shape", ["hyperellipsoid", "convexhull"])
@@ -62,7 +62,7 @@ class TestSensitivity:
         shape: str,
     ) -> None:
         """Only nodes with subtree size >= MIN_SUBTREE_SIZE get results."""
-        results = sensitivity(shape=shape, tree_name="test", dimension=3)
+        results = generalization(shape=shape, tree_name="test", dimension=3)
         assert len(results) == 1
 
     def test_small_subtrees_excluded(
@@ -71,7 +71,7 @@ class TestSensitivity:
         mock_get_embeddings: MagicMock,
     ) -> None:
         """Nodes with subtree size < MIN_SUBTREE_SIZE are excluded."""
-        results = sensitivity(shape="hyperellipsoid", tree_name="test", dimension=3)
+        results = generalization(shape="hyperellipsoid", tree_name="test", dimension=3)
         result_concepts = {r.concept for r in results}
         # Root has 6 concepts (animal + 5 leaves) >= MIN_SUBTREE_SIZE.
         assert "animal" in result_concepts
@@ -85,7 +85,7 @@ class TestSensitivity:
         mock_get_embeddings: MagicMock,
     ) -> None:
         """train_fraction=0.0 puts all spaceaug in test."""
-        results = sensitivity(
+        results = generalization(
             shape="hyperellipsoid",
             tree_name="test",
             dimension=3,
@@ -101,7 +101,7 @@ class TestSensitivity:
     ) -> None:
         """train_fraction=1.0 raises ValueError (no test data)."""
         with pytest.raises(ValueError):
-            sensitivity(
+            generalization(
                 shape="hyperellipsoid",
                 tree_name="test",
                 dimension=3,
@@ -114,7 +114,7 @@ class TestSensitivity:
         mock_get_embeddings: MagicMock,
     ) -> None:
         """Every result is a NodeResult with the right fields."""
-        results = sensitivity(shape="convexhull", tree_name="test", dimension=3)
+        results = generalization(shape="convexhull", tree_name="test", dimension=3)
         for r in results:
             assert isinstance(r, NodeResult)
             assert r.test_contained >= 0
@@ -130,7 +130,7 @@ class TestSensitivity:
         mock_get_embeddings: MagicMock,
     ) -> None:
         """tree_name defaults to 'monkey' and dimension defaults to 128."""
-        sensitivity(shape="hyperellipsoid")
+        generalization(shape="hyperellipsoid")
         mock_build_named_tree.assert_called_once_with("monkey")
         mock_get_embeddings.assert_called_once()
         _, kwargs = mock_get_embeddings.call_args
@@ -243,7 +243,7 @@ class TestGraph:
     def mock_build_named_tree(
         self, tree: KnowledgeTree
     ) -> Generator[MagicMock, None, None]:
-        with patch("sensitivity.build_named_tree", return_value=tree) as mock:
+        with patch("generalization.build_named_tree", return_value=tree) as mock:
             yield mock
 
     @pytest.fixture()
@@ -251,7 +251,7 @@ class TestGraph:
         def _fake(texts: list[str], *, dimension: int) -> list[list[float]]:
             return [np.random.standard_normal(dimension).tolist() for _ in texts]
 
-        with patch("sensitivity.get_embeddings", side_effect=_fake) as mock:
+        with patch("generalization.get_embeddings", side_effect=_fake) as mock:
             yield mock
 
     def test_returns_figure(
@@ -313,7 +313,7 @@ class TestGraph:
         mock_get_embeddings: MagicMock,
     ) -> None:
         """graph() creates one progress task per series line."""
-        with patch("sensitivity.Progress") as mock_progress_cls:
+        with patch("generalization.Progress") as mock_progress_cls:
             mock_progress = MagicMock()
             mock_progress_cls.return_value.__enter__ = MagicMock(
                 return_value=mock_progress
@@ -337,7 +337,7 @@ class TestGraph:
     ) -> None:
         """Figure title includes tree name, dimension, and analysis type."""
         fig = graph(tree_name="test", dimension=3)
-        assert fig.layout.title.text == "Sensitivity Analysis: test (dim=3)"
+        assert fig.layout.title.text == "Generalization Analysis: test (dim=3)"
 
     def test_trace_styling(
         self,

@@ -114,14 +114,14 @@ def print_node_results(results: list[NodeResult], top: int = 10) -> None:
         print(f"overall {train}  {test}")
 
 
-def sensitivity(
+def generalization(
     shape: Literal["hyperellipsoid", "hypersphere", "convexhull"],
     tree_name: str = "monkey",
     dimension: int = 128,
     train_fraction: float = 0.0,
     use_spaceaug: bool = True,
 ) -> list[NodeResult]:
-    """Run sensitivity analysis.
+    """Run generalization analysis.
 
     Builds the tree, splits concepts into train/test, fetches
     embeddings, fits shapes per node, and evaluates containment
@@ -194,7 +194,7 @@ def graph(tree_name: str, dimension: int) -> go.Figure:
             task = progress.add_task(f"{shape} {label}", total=len(fractions))
             accuracies: list[float] = []
             for frac in fractions:
-                results = sensitivity(
+                results = generalization(
                     shape=shape,
                     tree_name=tree_name,
                     dimension=dimension,
@@ -217,7 +217,7 @@ def graph(tree_name: str, dimension: int) -> go.Figure:
                 )
             )
     fig.update_layout(
-        title=f"Sensitivity Analysis: {tree_name} (dim={dimension})",
+        title=f"Generalization Analysis: {tree_name} (dim={dimension})",
         xaxis_title="Train Fraction",
         yaxis_title="Overall Accuracy",
         yaxis_range=[0, 1],
@@ -226,7 +226,7 @@ def graph(tree_name: str, dimension: int) -> go.Figure:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Sensitivity analysis.")
+    parser = argparse.ArgumentParser(description="Generalization analysis.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     run_parser = subparsers.add_parser("run")
@@ -269,7 +269,7 @@ if __name__ == "__main__":
 
     if args.command == "run":
         print_node_results(
-            sensitivity(
+            generalization(
                 shape=args.shape,
                 tree_name=args.tree_name,
                 dimension=args.dimension,
