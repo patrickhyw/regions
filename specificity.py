@@ -6,7 +6,6 @@ from typing import Literal, NamedTuple
 
 from tqdm import tqdm
 
-from convexhull import ConvexHull
 from embedding import get_embeddings
 from hyperellipsoid import Hyperellipsoid
 from hypersphere import Hypersphere
@@ -19,7 +18,6 @@ MIN_SUBTREE_SIZE = 5
 SHAPE_CLASSES: dict[str, type[Shape]] = {
     "hyperellipsoid": Hyperellipsoid,
     "hypersphere": Hypersphere,
-    "convexhull": ConvexHull,
 }
 
 
@@ -55,7 +53,7 @@ def _fit_all(
 
 
 def specificity(
-    shape: Literal["hyperellipsoid", "hypersphere", "convexhull"],
+    shape: Literal["hyperellipsoid", "hypersphere"],
     tree_name: str = "monkey",
     dimension: int = 128,
     progress: bool = False,

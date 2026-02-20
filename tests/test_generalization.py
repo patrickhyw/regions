@@ -54,7 +54,7 @@ class TestGeneralization:
         with patch("generalization.get_embeddings", side_effect=_fake) as mock:
             yield mock
 
-    @pytest.mark.parametrize("shape", ["hyperellipsoid", "convexhull"])
+    @pytest.mark.parametrize("shape", ["hyperellipsoid"])
     def test_result_count_matches_tree_nodes(
         self,
         mock_build_named_tree: MagicMock,
@@ -114,7 +114,7 @@ class TestGeneralization:
         mock_get_embeddings: MagicMock,
     ) -> None:
         """Every result is a NodeResult with the right fields."""
-        results = generalization(shape="convexhull", tree_name="test", dimension=3)
+        results = generalization(shape="hyperellipsoid", tree_name="test", dimension=3)
         for r in results:
             assert isinstance(r, NodeResult)
             assert r.test_contained >= 0
@@ -263,14 +263,14 @@ class TestGraph:
         fig = graph(tree_name="test", dimension=3)
         assert isinstance(fig, go.Figure)
 
-    def test_has_four_traces(
+    def test_has_two_traces(
         self,
         mock_build_named_tree: MagicMock,
         mock_get_embeddings: MagicMock,
     ) -> None:
-        """Figure has 4 traces (one per shape/spaceaug combo)."""
+        """Figure has 2 traces (one per spaceaug combo)."""
         fig = graph(tree_name="test", dimension=3)
-        assert len(fig.data) == 4
+        assert len(fig.data) == 2
 
     def test_spaceaug_traces_have_ten_x_values(
         self,
@@ -325,10 +325,8 @@ class TestGraph:
             assert mock_progress.add_task.call_args_list == [
                 (("hyperellipsoid spaceaug",), {"total": 10}),
                 (("hyperellipsoid no-spaceaug",), {"total": 9}),
-                (("convexhull spaceaug",), {"total": 10}),
-                (("convexhull no-spaceaug",), {"total": 9}),
             ]
-            assert mock_progress.advance.call_count == 38
+            assert mock_progress.advance.call_count == 19
 
     def test_title(
         self,
@@ -350,8 +348,6 @@ class TestGraph:
         expected = {
             "hyperellipsoid spaceaug": ("blue", "solid"),
             "hyperellipsoid no-spaceaug": ("blue", "dash"),
-            "convexhull spaceaug": ("green", "solid"),
-            "convexhull no-spaceaug": ("green", "dash"),
         }
         for name, (color, dash) in expected.items():
             assert traces[name].line.color == color

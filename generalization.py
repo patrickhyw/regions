@@ -7,7 +7,6 @@ import numpy as np
 import plotly.graph_objects as go
 from rich.progress import Progress
 
-from convexhull import ConvexHull
 from embedding import get_embeddings
 from hyperellipsoid import Hyperellipsoid
 from hypersphere import Hypersphere
@@ -19,7 +18,6 @@ MIN_SUBTREE_SIZE = 5
 SHAPE_CLASSES: dict[str, type[Shape]] = {
     "hyperellipsoid": Hyperellipsoid,
     "hypersphere": Hypersphere,
-    "convexhull": ConvexHull,
 }
 
 
@@ -115,7 +113,7 @@ def print_node_results(results: list[NodeResult], top: int = 10) -> None:
 
 
 def generalization(
-    shape: Literal["hyperellipsoid", "hypersphere", "convexhull"],
+    shape: Literal["hyperellipsoid", "hypersphere"],
     tree_name: str = "monkey",
     dimension: int = 128,
     train_fraction: float = 0.0,
@@ -180,8 +178,6 @@ def graph(tree_name: str, dimension: int) -> go.Figure:
     series = [
         ("hyperellipsoid", True),
         ("hyperellipsoid", False),
-        ("convexhull", True),
-        ("convexhull", False),
     ]
     spaceaug_fractions = [round(x * 0.1, 1) for x in range(10)]
     no_spaceaug_fractions = [round(x * 0.1, 1) for x in range(1, 10)]
@@ -205,7 +201,7 @@ def graph(tree_name: str, dimension: int) -> go.Figure:
                 contained = sum(r.test_contained for r in results)
                 accuracies.append(contained / total if total > 0 else 0.0)
                 progress.advance(task)
-            color = {"hyperellipsoid": "blue", "convexhull": "green"}[shape]
+            color = {"hyperellipsoid": "blue"}[shape]
             dash = "solid" if use_spaceaug else "dash"
             fig.add_trace(
                 go.Scatter(
