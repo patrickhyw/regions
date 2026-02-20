@@ -1,6 +1,6 @@
 # Feature Regions
 
-<img src="figures/visualize.png" alt="generalization_visualization" width="75%">
+<img src="figures/visualize.png" alt="visualization" width="75%">
 
 
 Exploring how features can be represented as regions instead of directions.
@@ -19,7 +19,7 @@ An ideal region geometry should have all of these properties:
   are modular.
 2. **Bounded** (finite volume) without needing `O(d)` points, for generalization to unseen points of *different* classes.
 3. **Full-dimensional** (>0 volume) without needing `O(d)` points, for generalization to unseen points of the *same* class.
-4. **Precision & recall** — to accurately model the shape of the feature.
+4. **Precision & recall** — accurately modeling the shape of the feature region.
 5. **Simplicity** - always good to have.
 
 Some candidate geometries are:
@@ -39,27 +39,10 @@ Some candidate geometries are:
 
 ## Experiments
 
-### Generalization
+## Discussion
 
-Generalization measures how well fitted regions contain held-out members.
-Regions are fitted on a training subset of concepts, then tested on
-whether the remaining concepts' embeddings fall inside the fitted
-region. The train fraction is swept from 0.0 to 0.9.
+generalization
 
-Each shape (hyperellipsoid, convex hull) is tested with and without
-**spaceaug**. With spaceaug, original concepts always go to training,
-and whitespace variants (` concept`, `concept `, ` concept `) are
-split into train/test. Without spaceaug, the originals themselves
-are split.
+volumes of regions at different depths
 
-<img src="figures/generalization.png" alt="generalization" width="75%">
-
-Key results:
-
-- **Hyperellipsoid + spaceaug** dominates, achieving ~0.72–0.98
-  accuracy across all train fractions.
-- **Hyperellipsoid without spaceaug** is much lower (~0.15–0.50),
-  showing that spaceaug provides a large boost.
-- **Convex hull + spaceaug** only achieves nonzero accuracy at high
-  train fractions.
-- **Convex hull without spaceaug** is ~0 everywhere.
+total volume of embedding space covered by known regions
