@@ -5,27 +5,33 @@
 
 Exploring how features can be represented as regions instead of directions.
 
-## Design Rationale
+## Summary
 
-### Goals
+This project explores the geometry of contiguous regions of related features by modeling categories of features (e.g. "animal") as shapes with volume rather than directions. It studies embedding models to avoid issues of tokenization and layers, though the results may generalize to internal activations. Since embeddings are most often compared with cosine similarity, it points to hyperspheres being a good approximation of feature regions. However, the experiments show hyperellipsoids performing far better than hyperspheres.
+
+## Design
+
+An ideal region geometry should have all of these characteristics:
 
 1. **Generative** (as opposed to discriminative) — defined from one class's points only, so regions
   are modular.
-2. **Bounded** (finite volume) without needing `~d` points, for generalization to unseen points of *different* classes.
-3. **Full-dimensional** (>0 volume) without needing `~d` points, for generalization to unseen points of the *same* class.
-4. **Generalization** — correctly includes members.
-5. **Specificity** — correctly excludes non-members.
+2. **Bounded** (finite volume) without needing `O(d)` points, for generalization to unseen points of *different* classes.
+3. **Full-dimensional** (>0 volume) without needing `O(d)` points, for generalization to unseen points of the *same* class.
+4. **Precision & recall** — to accurately model the shape of the feature.
+5. **Simplicity** - always good to have.
 
-### Types of Regions
+Some candidate geometries are:
 
-| Method | Generative | Bounded | Full-dimensional | Generalization | Specificity |
-| --- | --- | --- | --- | --- | --- |
-| Polytope (linear boundaries) | no | no | no | ~100% | ~100% |
-| Convex hull + PCA | yes | yes | no | ~100% | ~100% |
-| Hypersphere | yes | yes | yes | ~100% | ~10% |
-| **Hyperellipsoid + shrinkage** | **yes** | **yes** | **yes** | **~90%** | **~90%** |
-
-Hyperellipsoids + shrinkage hits the sweet spot across all desired properties.
+1. **Linear separation polytope**: a polytope formed by the linear separation boundaries between all classes.
+  1. Pros: full-dimensional, near perfect precision & recall (almost all classes are linearly separable), simple.
+  2. Cons: discriminative, not bounded without `O(d)` classes.
+2. **Hypersphere**: a hypersphere centered at the mean with radius equal to variance times a confidence threshold.
+  1. Pros: generative, bounded, full-dimensional, simple.
+  2. Cons: low precision & recall (see experiments).
+3. **Hyperellipsoid + shrinkage**: a hyperellipsoid centered at the mean with radius equal to variance times a confidence threshold, and shrinkage coefficient to regularize the covariance matrix.
+  1. Pros: generative, bounded, full-dimensional, simple.
+  2. Cons: low precision & recall (see experiments).
+4. **Convex hull + tolerance**: a convex hull formed by the points of all classes, with a tolerance parameter to make it full-dimensional.
 
 ## Experiments
 
