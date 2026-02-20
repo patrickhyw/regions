@@ -31,18 +31,18 @@ Some candidate geometries are:
     - Pros: generative, bounded, full-dimensional, simple.
     - Cons: low precision & recall (see experiments).
 3. **Hyperellipsoid + shrinkage**: a hyperellipsoid centered at the mean with radius equal to variance times a confidence threshold, and shrinkage coefficient to regularize the covariance matrix.
-    - Pros: generative, bounded, full-dimensional (with shrinkage), high precision & recall (see experiments), simple.
-    - Cons: doesn't generalize well to unseen points (see experiments).
-4. **Convex hull + tolerance**: a convex hull formed by the points of all classes, with a tolerance parameter to make it full-dimensional.
-    - Pros: generative, bounded, full-dimensional (with tolerance), likely high precision & recall due to linear separability.
-    - Cons: less simple than hyperellipsoid. Since hyperellipsoids already have great precision & recall, this complexity doesn't seem justified as of now.
+    - Pros: generative, bounded, full-dimensional with shrinkage, high precision & recall (see experiments), simple.
+    - Cons: requires shrinkage to be full-dimensional, which is extra complexity.
 
 ## Experiments
 
 ### Precision & Recall
 
-AUPRC measures one-vs-rest classification quality across subtrees,
-sweeping the confidence threshold to trace a precision-recall curve.
+<img src="figures/auprc.png" alt="AUPRC" width="75%">
+
+The AUPRC curve measures one-vs-rest classification quality across subtrees of a WordNet hypernym tree when building a hypersphere/ellipsoid over text embeddings of the nodes. It sweeps the confidence threshold to trace a precision-recall curve. Hyperellipsoid (0.98) strongly outperforms hypersphere (0.82), maintaining near-perfect precision across most recall levels.
+
+The shapes are built with all points of the class (to test precision and recall). Generalization to unseen points of the same class is not tested.
 
 To reproduce:
 
@@ -51,12 +51,9 @@ To reproduce:
 python auprc.py graph --tree-name animalmin --dimension 768
 ```
 
-<img src="figures/auprc.png" alt="AUPRC" width="75%">
+## Future Work
 
-Hyperellipsoid (0.98) strongly outperforms hypersphere (0.82), maintaining near-perfect precision across most recall levels.
-
-## Discussion
-the shapes here are built with all points of the class (to test precision and recall). however, generalization to unseen points of the same class is not tested.
-idea: volumes of regions at different depths
-idea: volume change throughout layers. can show how concepts are formed
-idea: total volume of embedding space covered by known regions
+Since the shapes have volume, many things can be explored:
+ - Comparing the volumes of regions in embedding/representation space for concepts at different depths of the tree (e.g. "animal" vs "mammal"/"bird")
+ - Volume change of concepts in representation space throughout layers of an LLM, which can show how concepts are formed
+ - Total volume of embedding/representation space covered by known regions, giving some quantification of how much of the space is "understood"
