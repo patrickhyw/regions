@@ -3,7 +3,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from auprc import MIN_SUBTREE_SIZE, SubtreeResult, auprc, graph, print_results
+from auprc import (
+    MIN_SUBTREE_SIZE,
+    SubtreeResult,
+    auprc,
+    graph,
+    pr_curve_area,
+    print_results,
+)
 from tree import KnowledgeNode, KnowledgeTree
 
 
@@ -107,7 +114,7 @@ class TestAuprc:
         """Omitting tree_name/dimension/confidence uses defaults."""
         auprc("hyperellipsoid")
 
-        mock_build_named_tree.assert_called_once_with("monkey")
+        mock_build_named_tree.assert_called_once_with("mammal")
         mock_get_embeddings.assert_called_once_with(tree.root.concepts(), dimension=128)
 
     def test_confidence_passed_to_fit(
@@ -142,6 +149,57 @@ class TestAuprc:
         }
         for r in results:
             assert r.tp + r.fn == subtree_sizes[r.concept]
+
+
+class TestPrCurveArea:
+    @pytest.mark.parametrize(
+        "recalls, precisions, expected",
+        [
+            pytest.param([1.0], [1.0], 1.0, id="perfect_classifier"),
+            pytest.param([0.5], [0.5], 0.5, id="single_midpoint"),
+            pytest.param(
+                [0.2, 0.5, 0.8],
+                [0.8, 0.6, 0.4],
+                0.58,
+                id="three_points_sorted",
+            ),
+            pytest.param(
+                [0.8, 0.2, 0.5],
+                [0.4, 0.8, 0.6],
+                0.58,
+                id="three_points_unsorted",
+            ),
+            pytest.param(
+                [0.5, 0.5, 0.5],
+                [0.3, 0.6, 0.9],
+                0.55,
+                id="same_recall",
+            ),
+        ],
+    )
+    def test_area(
+        self,
+        recalls: list[float],
+        precisions: list[float],
+        expected: float,
+    ) -> None:
+        assert pr_curve_area(recalls, precisions) == pytest.approx(expected)
+
+    @pytest.mark.parametrize(
+        "recalls, precisions, match",
+        [
+            pytest.param([], [], "empty", id="empty_input"),
+            pytest.param([0.5], [], "same length", id="mismatched_lengths"),
+        ],
+    )
+    def test_errors(
+        self,
+        recalls: list[float],
+        precisions: list[float],
+        match: str,
+    ) -> None:
+        with pytest.raises(ValueError, match=match):
+            pr_curve_area(recalls, precisions)
 
 
 class TestPrintResults:
@@ -215,12 +273,12 @@ class TestGraph:
             yield mock
 
     def test_produces_two_traces(self, mock_auprc: MagicMock) -> None:
-        """Graph has one line per shape: hyperellipsoid and hypersphere."""
+        """Graph has one line per shape with AUPRC in the name."""
         fig = graph("monkey", 128)
         assert len(fig.data) == 2
         assert [t.name for t in fig.data] == [
-            "hyperellipsoid",
-            "hypersphere",
+            "hyperellipsoid (AUPRC=0.80)",
+            "hypersphere (AUPRC=0.80)",
         ]
 
     def test_sweeps_confidence_values(self, mock_auprc: MagicMock) -> None:
@@ -235,20 +293,29 @@ class TestGraph:
             ]
             assert confidences == expected
 
-    def test_each_trace_has_nine_data_points(self, mock_auprc: MagicMock) -> None:
-        """Each trace has one data point per confidence level."""
+    def test_each_trace_has_eleven_data_points(self, mock_auprc: MagicMock) -> None:
+        """Each trace has 9 swept points plus 2 interpolated endpoints."""
         fig = graph("monkey", 128)
         for trace in fig.data:
-            assert len(trace.x) == 9
-            assert len(trace.y) == 9
+            assert len(trace.x) == 11
+            assert len(trace.y) == 11
 
-    def test_title(self, mock_auprc: MagicMock) -> None:
-        """Figure title includes tree name and dimension."""
+    def test_layout(self, mock_auprc: MagicMock) -> None:
+        """Figure has correct title, axis labels, and axis ranges."""
         fig = graph("monkey", 128)
         assert fig.layout.title.text == "AUPRC: monkey (dim=128)"
-
-    def test_axis_labels(self, mock_auprc: MagicMock) -> None:
-        """X-axis is recall, Y-axis is precision."""
-        fig = graph("monkey", 128)
         assert fig.layout.xaxis.title.text == "Weighted Recall"
         assert fig.layout.yaxis.title.text == "Weighted Precision"
+        assert list(fig.layout.xaxis.range) == [0, 1]
+        assert list(fig.layout.yaxis.range) == [0, 1]
+
+    def test_prints_auprc(
+        self,
+        mock_auprc: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """AUPRC scores are printed for each shape."""
+        graph("monkey", 128)
+        output = capsys.readouterr().out
+        assert "hyperellipsoid AUPRC=" in output
+        assert "hypersphere AUPRC=" in output

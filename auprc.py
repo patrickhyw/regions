@@ -47,9 +47,25 @@ def _weighted_averages(results: list[SubtreeResult]) -> WeightedAverage:
     )
 
 
+def pr_curve_area(recalls: list[float], precisions: list[float]) -> float:
+    """Compute area under the precision-recall curve via trapezoidal rule.
+
+    Points are sorted by recall, then endpoints (0, 1) and (1, 0) are
+    interpolated before applying the trapezoidal rule.
+    """
+    if not recalls:
+        raise ValueError("Inputs must not be empty")
+    if len(recalls) != len(precisions):
+        raise ValueError("Recalls and precisions must have same length")
+    points = [(0.0, 1.0)] + sorted(zip(recalls, precisions)) + [(1.0, 0.0)]
+    return sum(
+        0.5 * (r2 - r1) * (p2 + p1) for (r1, p1), (r2, p2) in zip(points, points[1:])
+    )
+
+
 def auprc(
     shape: Literal["hyperellipsoid", "hypersphere"],
-    tree_name: str = "monkey",
+    tree_name: str = "mammal",
     dimension: int = 128,
     confidence: float = 0.95,
 ) -> list[SubtreeResult]:
@@ -140,19 +156,24 @@ def graph(tree_name: str, dimension: int) -> go.Figure:
                 precisions.append(avg.precision)
                 recalls.append(avg.recall)
                 progress.advance(task)
+            area = pr_curve_area(recalls, precisions)
+            print(f"{shape_name} AUPRC={area:.4f}")
+            points = sorted(zip(recalls, precisions))
+            plot_r = [0.0] + [r for r, _ in points] + [1.0]
+            plot_p = [1.0] + [p for _, p in points] + [0.0]
             fig.add_trace(
                 go.Scatter(
-                    x=recalls,
-                    y=precisions,
+                    x=plot_r,
+                    y=plot_p,
                     mode="lines",
-                    name=shape_name,
+                    name=f"{shape_name} (AUPRC={area:.2f})",
                     line=dict(color=color),
                 )
             )
     fig.update_layout(
         title=f"AUPRC: {tree_name} (dim={dimension})",
-        xaxis_title="Weighted Recall",
-        yaxis_title="Weighted Precision",
+        xaxis=dict(title="Weighted Recall", range=[0, 1]),
+        yaxis=dict(title="Weighted Precision", range=[0, 1]),
     )
     return fig
 
@@ -169,8 +190,8 @@ if __name__ == "__main__":
     for sub in [print_parser, graph_parser]:
         sub.add_argument(
             "--tree-name",
-            default="monkey",
-            help="Name of the tree. Default: monkey.",
+            default="mammal",
+            help="Name of the tree. Default: mammal.",
         )
         sub.add_argument(
             "--dimension",
