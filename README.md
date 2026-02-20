@@ -1,17 +1,19 @@
 # Feature Regions
 
-<img src="figures/specvis.png" alt="generalization_visualization" width="75%">
+<img src="figures/visualize.png" alt="generalization_visualization" width="75%">
 
 
 Exploring how features can be represented as regions instead of directions.
 
 ## Summary
 
-This project explores the geometry of contiguous regions of related features by modeling categories of features (e.g. "animal") as shapes with volume rather than directions. It studies embedding models to avoid issues of tokenization and layers, though the results may generalize to internal activations. Since embeddings are most often compared with cosine similarity, it points to hyperspheres being a good approximation of feature regions. However, the experiments show hyperellipsoids performing far better than hyperspheres.
+This project studies the geometry of contiguous regions of related features (in text embeddings), finding that hyperellipsoids are a good approximation of feature regions with many desirable properties. It finds that hyperspheres are a poor approximation, which is somewhat surprising given that embeddings are most often compared with cosine similarity.
+
+The project is inspired by [feature splitting](https://transformer-circuits.pub/2023/monosemantic-features) and [spatial structure](https://arxiv.org/abs/2410.19750) and seeks to explicitly model the geometry of these regions. It's related to [hierarchical geometry](https://arxiv.org/abs/2406.14172) but focuses on the geometry of individual categories rather than the structure between categories. It models a different kind of geometry than [non-linear features](https://arxiv.org/abs/2405.14860).
 
 ## Design
 
-An ideal region geometry should have all of these characteristics:
+An ideal region geometry should have all of these properties:
 
 1. **Generative** (as opposed to discriminative) — defined from one class's points only, so regions
   are modular.
@@ -29,9 +31,11 @@ Some candidate geometries are:
   1. Pros: generative, bounded, full-dimensional, simple.
   2. Cons: low precision & recall (see experiments).
 3. **Hyperellipsoid + shrinkage**: a hyperellipsoid centered at the mean with radius equal to variance times a confidence threshold, and shrinkage coefficient to regularize the covariance matrix.
-  1. Pros: generative, bounded, full-dimensional, simple.
-  2. Cons: low precision & recall (see experiments).
+  1. Pros: generative, bounded, full-dimensional (with shrinkage), high precision & recall (see experiments), simple.
+  2. Cons: doesn't generalize well to unseen points (see experiments).
 4. **Convex hull + tolerance**: a convex hull formed by the points of all classes, with a tolerance parameter to make it full-dimensional.
+  1. Pros: generative, bounded, full-dimensional (with tolerance), likely high precision & recall due to linear separability.
+  2. Cons: less simple than hyperellipsoid. Since hyperellipsoids already have great precision & recall, this complexity doesn't seem justified as of now.
 
 ## Experiments
 

@@ -4,7 +4,7 @@ import pytest
 from sklearn.decomposition import PCA
 
 from hyperellipsoid import Hyperellipsoid
-from specvis import ellipsoid_surface, marker_size
+from visualize import ellipsoid_surface, marker_size
 
 
 class TestMarkerSize:
