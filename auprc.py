@@ -3,7 +3,8 @@ from __future__ import annotations
 import argparse
 from typing import Literal, NamedTuple
 
-from tqdm import tqdm
+import plotly.graph_objects as go
+from rich.progress import Progress
 
 from embedding import get_embeddings
 from hyperellipsoid import Hyperellipsoid
@@ -12,7 +13,7 @@ from shape import Shape
 from tree import KnowledgeNode, build_named_tree
 from util import set_seed
 
-MIN_SUBTREE_SIZE = 5
+MIN_SUBTREE_SIZE = 10
 SHAPE_CLASSES: dict[str, type[Shape]] = {
     "hyperellipsoid": Hyperellipsoid,
     "hypersphere": Hypersphere,
@@ -26,12 +27,31 @@ class SubtreeResult(NamedTuple):
     fn: int
 
 
+class WeightedAverage(NamedTuple):
+    precision: float
+    recall: float
+
+
+def _safe_div(numerator: float, denominator: float) -> float:
+    return numerator / denominator if denominator > 0 else 0.0
+
+
+def _weighted_averages(results: list[SubtreeResult]) -> WeightedAverage:
+    """Compute size-weighted average precision and recall."""
+    total_weight = sum(r.tp + r.fn for r in results)
+    w_prec = sum(_safe_div(r.tp, r.tp + r.fp) * (r.tp + r.fn) for r in results)
+    w_rec = sum(_safe_div(r.tp, r.tp + r.fn) * (r.tp + r.fn) for r in results)
+    return WeightedAverage(
+        precision=_safe_div(w_prec, total_weight),
+        recall=_safe_div(w_rec, total_weight),
+    )
+
+
 def auprc(
     shape: Literal["hyperellipsoid", "hypersphere"],
     tree_name: str = "monkey",
     dimension: int = 128,
     confidence: float = 0.95,
-    progress: bool = False,
 ) -> list[SubtreeResult]:
     """Compute one-vs-rest precision/recall per subtree.
 
@@ -56,7 +76,7 @@ def auprc(
         stack.extend(n.children)
 
     results: list[SubtreeResult] = []
-    for node in tqdm(nodes, desc="Evaluating subtrees", disable=not progress):
+    for node in nodes:
         positive = set(node.concepts())
         negative = all_concepts_set - positive
         vecs = [representations[c] for c in positive]
@@ -74,9 +94,6 @@ def print_results(results: list[SubtreeResult], top: int = 10) -> None:
     def _pct(numerator: float, denominator: float) -> str:
         return f"{numerator / denominator * 100:.1f}%"
 
-    def _safe_div(numerator: float, denominator: float) -> float:
-        return numerator / denominator if denominator > 0 else 0.0
-
     ranked = sorted(results, key=lambda r: r.tp + r.fn, reverse=True)
     for r in ranked[:top]:
         prec_denom = r.tp + r.fp
@@ -88,54 +105,104 @@ def print_results(results: list[SubtreeResult], top: int = 10) -> None:
             f"  recall={r.tp}/{rec_denom}"
             f" ({_pct(r.tp, rec_denom)})"
         )
-    # Weighted average: weight each subtree by its size (tp + fn).
     total_weight = sum(r.tp + r.fn for r in results)
     if total_weight > 0:
-        w_prec = sum(_safe_div(r.tp, r.tp + r.fp) * (r.tp + r.fn) for r in results)
-        w_rec = sum(_safe_div(r.tp, r.tp + r.fn) * (r.tp + r.fn) for r in results)
+        avg = _weighted_averages(results)
         print(
             f"weighted avg"
-            f"  precision={_pct(w_prec, total_weight)}"
-            f"  recall={_pct(w_rec, total_weight)}"
+            f"  precision={avg.precision * 100:.1f}%"
+            f"  recall={avg.recall * 100:.1f}%"
         )
+
+
+def graph(tree_name: str, dimension: int) -> go.Figure:
+    """Plot precision-recall curve sweeping confidence for each shape."""
+    confidence_levels = [0.01, 0.03, 0.1, 0.3, 0.5, 0.7, 0.9, 0.97, 0.99]
+    shapes_and_colors = [
+        ("hyperellipsoid", "blue"),
+        ("hypersphere", "red"),
+    ]
+
+    fig = go.Figure()
+    with Progress() as progress:
+        for shape_name, color in shapes_and_colors:
+            task = progress.add_task(shape_name, total=len(confidence_levels))
+            precisions: list[float] = []
+            recalls: list[float] = []
+            for conf in confidence_levels:
+                results = auprc(
+                    shape=shape_name,
+                    tree_name=tree_name,
+                    dimension=dimension,
+                    confidence=conf,
+                )
+                avg = _weighted_averages(results)
+                precisions.append(avg.precision)
+                recalls.append(avg.recall)
+                progress.advance(task)
+            fig.add_trace(
+                go.Scatter(
+                    x=recalls,
+                    y=precisions,
+                    mode="lines",
+                    name=shape_name,
+                    line=dict(color=color),
+                )
+            )
+    fig.update_layout(
+        title=f"AUPRC: {tree_name} (dim={dimension})",
+        xaxis_title="Weighted Recall",
+        yaxis_title="Weighted Precision",
+    )
+    return fig
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Evaluate one-vs-rest precision/recall per subtree."
     )
-    parser.add_argument(
-        "--tree-name",
-        default="monkey",
-        help="Name of the tree. Default: monkey.",
-    )
-    parser.add_argument(
-        "--dimension",
-        type=int,
-        default=128,
-        help="Dimension of embeddings. Default: 128.",
-    )
-    parser.add_argument(
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    print_parser = subparsers.add_parser("print")
+    graph_parser = subparsers.add_parser("graph")
+
+    for sub in [print_parser, graph_parser]:
+        sub.add_argument(
+            "--tree-name",
+            default="monkey",
+            help="Name of the tree. Default: monkey.",
+        )
+        sub.add_argument(
+            "--dimension",
+            type=int,
+            default=128,
+            help="Dimension of embeddings. Default: 128.",
+        )
+
+    print_parser.add_argument(
         "--shape",
         default="hyperellipsoid",
         choices=SHAPE_CLASSES,
         help="Shape type. Default: hyperellipsoid.",
     )
-    parser.add_argument(
+    print_parser.add_argument(
         "--confidence",
         type=float,
         default=0.95,
         help="Confidence level for shape fitting. Default: 0.95.",
     )
-    args = parser.parse_args()
 
+    args = parser.parse_args()
     set_seed()
-    print_results(
-        auprc(
-            shape=args.shape,
-            tree_name=args.tree_name,
-            dimension=args.dimension,
-            confidence=args.confidence,
-            progress=True,
+
+    if args.command == "print":
+        print_results(
+            auprc(
+                shape=args.shape,
+                tree_name=args.tree_name,
+                dimension=args.dimension,
+                confidence=args.confidence,
+            )
         )
-    )
+    elif args.command == "graph":
+        graph(args.tree_name, args.dimension).show()

@@ -14,7 +14,7 @@ from tree import KnowledgeNode, build_named_tree
 from util import set_seed
 
 MAX_SIBLING_RATIO = 3.0
-MIN_SUBTREE_SIZE = 5
+MIN_SUBTREE_SIZE = 10
 SHAPE_CLASSES: dict[str, type[Shape]] = {
     "hyperellipsoid": Hyperellipsoid,
     "hypersphere": Hypersphere,

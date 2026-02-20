@@ -3,23 +3,23 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from auprc import MIN_SUBTREE_SIZE, SubtreeResult, auprc, print_results
+from auprc import MIN_SUBTREE_SIZE, SubtreeResult, auprc, graph, print_results
 from tree import KnowledgeNode, KnowledgeTree
 
 
 class TestAuprcConstants:
     def test_min_subtree_size(self) -> None:
-        assert MIN_SUBTREE_SIZE == 5
+        assert MIN_SUBTREE_SIZE == 10
 
 
 class TestAuprc:
     @pytest.fixture()
     def tree(self) -> KnowledgeTree:
-        """Tree with two balanced siblings, each having 5 leaves.
+        """Tree with two balanced siblings, each having 9 leaves.
 
-        Each sibling subtree has 6 concepts (parent + 5 children),
-        so each passes MIN_SUBTREE_SIZE. The root has 13 concepts.
-        Eligible nodes: root (13), child_a (6), child_b (6).
+        Each sibling subtree has 10 concepts (parent + 9 children),
+        so each passes MIN_SUBTREE_SIZE. The root has 21 concepts.
+        Eligible nodes: root (21), child_a (10), child_b (10).
         """
         return KnowledgeTree(
             root=KnowledgeNode(
@@ -27,11 +27,11 @@ class TestAuprc:
                 children=[
                     KnowledgeNode(
                         concept="child_a",
-                        children=[KnowledgeNode(concept=f"a{i}") for i in range(5)],
+                        children=[KnowledgeNode(concept=f"a{i}") for i in range(9)],
                     ),
                     KnowledgeNode(
                         concept="child_b",
-                        children=[KnowledgeNode(concept=f"b{i}") for i in range(5)],
+                        children=[KnowledgeNode(concept=f"b{i}") for i in range(9)],
                     ),
                 ],
             )
@@ -39,10 +39,10 @@ class TestAuprc:
 
     @pytest.fixture()
     def embeddings(self) -> list[list[float]]:
-        """3-D embeddings for the 13 concepts in the tree fixture.
+        """3-D embeddings for the 21 concepts in the tree fixture.
 
         Concept order matches KnowledgeNode.concepts() DFS traversal:
-        root, child_a, a0-a4, child_b, b0-b4.
+        root, child_a, a0-a8, child_b, b0-b8.
         The a-cluster is near [1, 0, 0] and b-cluster near
         [0, 1, 0].
         """
@@ -54,12 +54,20 @@ class TestAuprc:
             [1.0, 0.0, 0.1],  # a2
             [0.85, 0.1, 0.05],  # a3
             [0.9, 0.05, 0.0],  # a4
+            [0.92, 0.08, 0.0],  # a5
+            [0.88, 0.12, 0.0],  # a6
+            [0.93, 0.02, 0.05],  # a7
+            [0.97, 0.03, 0.0],  # a8
             [0.0, 1.0, 0.0],  # child_b
             [0.1, 0.9, 0.0],  # b0
             [0.05, 0.95, 0.05],  # b1
             [0.0, 1.0, 0.1],  # b2
             [0.1, 0.85, 0.05],  # b3
             [0.05, 0.9, 0.0],  # b4
+            [0.08, 0.92, 0.0],  # b5
+            [0.12, 0.88, 0.0],  # b6
+            [0.02, 0.93, 0.05],  # b7
+            [0.03, 0.97, 0.0],  # b8
         ]
 
     @pytest.fixture()
@@ -128,9 +136,9 @@ class TestAuprc:
         """TP + FN equals the number of positive concepts per subtree."""
         results = auprc("hyperellipsoid", "test_tree", 3)
         subtree_sizes = {
-            "root": 13,
-            "child_a": 6,
-            "child_b": 6,
+            "root": 21,
+            "child_a": 10,
+            "child_b": 10,
         }
         for r in results:
             assert r.tp + r.fn == subtree_sizes[r.concept]
@@ -196,3 +204,51 @@ class TestPrintResults:
         # Alpha: precision=8/10, recall=8/10.
         assert "precision=8/10" in output
         assert "recall=8/10" in output
+
+
+class TestGraph:
+    @pytest.fixture()
+    def mock_auprc(self) -> Generator[MagicMock, None, None]:
+        """Mock auprc to return fixed results for all calls."""
+        results = [SubtreeResult(concept="root", tp=8, fp=2, fn=2)]
+        with patch("auprc.auprc", return_value=results) as mock:
+            yield mock
+
+    def test_produces_two_traces(self, mock_auprc: MagicMock) -> None:
+        """Graph has one line per shape: hyperellipsoid and hypersphere."""
+        fig = graph("monkey", 128)
+        assert len(fig.data) == 2
+        assert [t.name for t in fig.data] == [
+            "hyperellipsoid",
+            "hypersphere",
+        ]
+
+    def test_sweeps_confidence_values(self, mock_auprc: MagicMock) -> None:
+        """Each shape is evaluated at all nine confidence levels."""
+        graph("monkey", 128)
+        expected = [0.01, 0.03, 0.1, 0.3, 0.5, 0.7, 0.9, 0.97, 0.99]
+        for shape_name in ["hyperellipsoid", "hypersphere"]:
+            confidences = [
+                c.kwargs["confidence"]
+                for c in mock_auprc.call_args_list
+                if c.kwargs["shape"] == shape_name
+            ]
+            assert confidences == expected
+
+    def test_each_trace_has_nine_data_points(self, mock_auprc: MagicMock) -> None:
+        """Each trace has one data point per confidence level."""
+        fig = graph("monkey", 128)
+        for trace in fig.data:
+            assert len(trace.x) == 9
+            assert len(trace.y) == 9
+
+    def test_title(self, mock_auprc: MagicMock) -> None:
+        """Figure title includes tree name and dimension."""
+        fig = graph("monkey", 128)
+        assert fig.layout.title.text == "AUPRC: monkey (dim=128)"
+
+    def test_axis_labels(self, mock_auprc: MagicMock) -> None:
+        """X-axis is recall, Y-axis is precision."""
+        fig = graph("monkey", 128)
+        assert fig.layout.xaxis.title.text == "Weighted Recall"
+        assert fig.layout.yaxis.title.text == "Weighted Precision"

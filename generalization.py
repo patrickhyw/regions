@@ -14,7 +14,7 @@ from shape import Shape
 from tree import build_named_tree
 from util import set_seed
 
-MIN_SUBTREE_SIZE = 5
+MIN_SUBTREE_SIZE = 10
 SHAPE_CLASSES: dict[str, type[Shape]] = {
     "hyperellipsoid": Hyperellipsoid,
     "hypersphere": Hypersphere,
