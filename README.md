@@ -47,6 +47,7 @@ To reproduce:
 
 ```bash
 pip install -r requirements.txt
+
 # animal is the largest tree and 768 is a middle dimension between 128 and 3072.
 python auprc.py graph --tree-name animalmin --dimension 768
 ```
