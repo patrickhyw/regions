@@ -65,7 +65,7 @@ def pr_curve_area(recalls: list[float], precisions: list[float]) -> float:
 
 def auprc(
     shape: Literal["hyperellipsoid", "hypersphere"],
-    tree_name: str = "mammal",
+    tree_name: str = "mammalmin",
     dimension: int = 128,
     confidence: float = 0.95,
 ) -> list[SubtreeResult]:
@@ -133,7 +133,21 @@ def print_results(results: list[SubtreeResult], top: int = 10) -> None:
 
 def graph(tree_name: str, dimension: int) -> go.Figure:
     """Plot precision-recall curve sweeping confidence for each shape."""
-    confidence_levels = [0.01, 0.03, 0.1, 0.3, 0.5, 0.7, 0.9, 0.97, 0.99]
+    confidence_levels = [
+        0.01,
+        0.03,
+        0.1,
+        0.3,
+        0.5,
+        0.7,
+        0.9,
+        0.97,
+        0.99,
+        0.993,
+        0.999,
+        0.9993,
+        0.9999,
+    ]
     shapes_and_colors = [
         ("hyperellipsoid", "blue"),
         ("hypersphere", "red"),

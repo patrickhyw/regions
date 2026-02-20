@@ -114,7 +114,7 @@ class TestAuprc:
         """Omitting tree_name/dimension/confidence uses defaults."""
         auprc("hyperellipsoid")
 
-        mock_build_named_tree.assert_called_once_with("mammal")
+        mock_build_named_tree.assert_called_once_with("mammalmin")
         mock_get_embeddings.assert_called_once_with(tree.root.concepts(), dimension=128)
 
     def test_confidence_passed_to_fit(
