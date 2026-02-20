@@ -225,10 +225,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generalization analysis.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    run_parser = subparsers.add_parser("run")
+    print_parser = subparsers.add_parser("print")
     graph_parser = subparsers.add_parser("graph")
 
-    for sub in [run_parser, graph_parser]:
+    for sub in [print_parser, graph_parser]:
         sub.add_argument(
             "--tree-name",
             default="monkey",
@@ -241,19 +241,19 @@ if __name__ == "__main__":
             help="Dimension of embeddings. Default: 128.",
         )
 
-    run_parser.add_argument(
+    print_parser.add_argument(
         "--shape",
         default="hyperellipsoid",
         choices=SHAPE_CLASSES,
         help="Shape type. Default: hyperellipsoid.",
     )
-    run_parser.add_argument(
+    print_parser.add_argument(
         "--train-fraction",
         type=float,
         default=0.0,
         help=("Fraction of concepts used for training (0.0 to 1.0). Default: 0.0."),
     )
-    run_parser.add_argument(
+    print_parser.add_argument(
         "--spaceaug",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     set_seed()
 
-    if args.command == "run":
+    if args.command == "print":
         print_node_results(
             generalization(
                 shape=args.shape,
