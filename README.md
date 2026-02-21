@@ -40,7 +40,7 @@ Some candidate geometries are:
 
 ### Precision & Recall
 
-<img src="figures/auprc.png" alt="AUPRC" width="100%">
+<img src="figures/auprc.png" alt="AUPRC" width="9%">
 
 The AUPRC curve measures one-vs-rest classification quality across subtrees of a WordNet hypernym tree when building a hypersphere/ellipsoid over text embeddings of the nodes. It sweeps the confidence threshold to trace a precision-recall curve. Hyperellipsoid (0.99) strongly outperforms hypersphere (0.83), maintaining near-perfect precision across most recall levels.
 

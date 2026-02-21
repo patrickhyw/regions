@@ -134,19 +134,13 @@ def print_results(results: list[SubtreeResult], top: int = 10) -> None:
 def graph(tree_name: str, dimension: int) -> go.Figure:
     """Plot precision-recall curve sweeping confidence for each shape."""
     confidence_levels = [
-        0.01,
-        0.03,
-        0.1,
-        0.3,
         0.5,
-        0.7,
         0.9,
-        0.97,
         0.99,
-        0.993,
         0.999,
-        0.9993,
         0.9999,
+        0.99999,
+        0.999999,
     ]
     shapes_and_colors = [
         ("hyperellipsoid", "blue"),
