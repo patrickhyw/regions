@@ -25,6 +25,8 @@ class Hypersphere(NamedTuple):
         containment threshold.
         """
         vecs_arr = np.asarray(vecs)
+        # Intentionally not normalizing the mean to unit length.
+        # This produces better classification and visualization.
         center = vecs_arr.mean(axis=0)
         n, d = vecs_arr.shape
         sq_dists = np.sum((vecs_arr - center) ** 2, axis=1)
