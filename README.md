@@ -51,7 +51,8 @@ To reproduce:
 ```bash
 pip install -r requirements.txt
 
-# animal is the largest tree and 768 is an intermediate dimension between 128 and 3072, the min and max of the embedding model.
+# animal is the largest tree and 768 is an intermediate dimension between 128 and 3072,
+# the min and max of the embedding model.
 python auprc.py graph --tree-name animalmin --dimension 768
 ```
 
