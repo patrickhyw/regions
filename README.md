@@ -60,9 +60,4 @@ python auprc.py graph --tree-name animalmin --dimension 768
 
 These findings may have implications for linear probing:
  - Since hyperellipsoids outperform hyperspheres, some sort of direction-weighted cosine similarity might be more accurate than standard cosine similarity for probes.
- - Thinking further, the confidence estimate of the shape could be a better metric than cosine similarity as this naturally provides a probabilistic confidence level specific to that concept (the same cosine similarity may imply difference confidence levels for different concepts).
-
-Also, since the shapes have volume, many things can be explored:
- - Quantifying the % of the representation space we understand by summing volume of known feature regions.
- - Quantifying concept formation by studying volume change of features throughout LLM layers.
- - Quantifying amount of "null space" left for clean separation boundaries by subtracting combined volume of subcategories from volume of higher-level category (e.g. animal - (mammal + bird)).
+ - The confidence estimate of the shape could be a better metric than cosine similarity as this naturally provides a probabilistic confidence level specific to that concept (the same cosine similarity may imply difference confidence levels for different concepts).
