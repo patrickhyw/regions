@@ -4,6 +4,10 @@
 
 *Ellipsoids for the "mammal" and "bird" feature regions projected onto 3D space.*
 
+```bash
+python visualize.py
+```
+
 ## Summary
 
 This project studies the geometry of contiguous regions of related features (in text embeddings), finding that hyperellipsoids are a good model. Hyperspheres give poor results, which is somewhat surprising given that embeddings are most often compared with cosine similarity.
@@ -49,8 +53,6 @@ The shapes are built with all points of the class (to test precision and recall)
 To reproduce:
 
 ```bash
-pip install -r requirements.txt
-
 # animal is the largest tree and 768 is an intermediate dimension between 128 and 3072,
 # the min and max of the embedding model.
 python auprc.py graph --tree-name animalmin --dimension 768
