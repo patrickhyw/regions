@@ -60,6 +60,9 @@ python auprc.py graph --tree-name animalmin --dimension 768
 
 ## Future Work
 
+Studying internal activations over text embeddings:
+ - This project studies text embeddings to avoid issues of layer and token, so a next step is studying internal activations.
+
 These findings may have implications for linear probing:
  - Since hyperellipsoids outperform hyperspheres, some sort of direction-weighted cosine similarity might be more accurate than standard cosine similarity for probes.
  - The confidence estimate of the shape could be a better metric than cosine similarity as this naturally provides a probabilistic confidence level specific to that concept (the same cosine similarity may imply difference confidence levels for different concepts).
